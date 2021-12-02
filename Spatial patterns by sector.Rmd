@@ -1,0 +1,74 @@
+---
+title: "Groundfish spatial and seasonal patterns"
+author: "Kate Richerson"
+date: "11/16/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache = TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(janitor)
+library(lubridate)
+
+#A little data prep on tantalus because I run into encoding issues when just loading the .RDA dataset
+# source("~/observer/Input/load_data_2021-09-30.R")
+# 
+# load_data("WCGOP_proc", "EM_proc")
+# 
+# ob_gf <- OBOrig_Proc %>% 
+#   clean_names() %>% 
+#   filter(sector %in% c("Limited Entry Trawl", 
+#                        "Catch Shares",
+#                        "Midwater Hake",
+#                        "Midwater Rockfish",
+#                        "Shoreside Hake",
+#                        "OA Fixed Gear",
+#                        "Limited Entry Sablefish",
+#                        "LE Fixed Gear DTL")) %>% 
+#   mutate(sector2 = ifelse(sector %in% c("Limited Entry Trawl", "Catch Shares") &
+#                             gear %in% c("Bottom Trawl", "Midwater Trawl"), "LE/CS Trawl", sector)) %>% 
+#   mutate(sector2 = ifelse(sector == "Catch Shares" &
+#                             !gear %in% c("Bottom Trawl", "Midwater Trawl"), "CS Fixed Gear", sector2))
+
+
+```
+
+```{r load data, include = FALSE, cache = TRUE}
+ob_gf <- readRDS("ob_gf.rds")
+
+```
+
+
+## Seasonal patterns
+
+
+
+```{r seasonal, echo = FALSE}
+library(lubridate)
+ob_gf_day <- ob_gf %>% 
+  mutate(j_set_day = yday(set_date)) %>% 
+  group_by(sector2, j_set_day, year) %>% 
+  summarise(day_tgt_mt = sum(tgt_mt, na.rm=T)) %>% 
+  tidyr::complete(sector2, j_set_day, year, fill = list(day_tgt_mt = 0)) %>% 
+  group_by(sector2, year) %>% 
+  mutate(annual_total_tgt_mt = sum(day_tgt_mt, na.rm = T)) %>% 
+  mutate(prop_annual_tgt = day_tgt_mt/annual_total_tgt_mt)
+
+season_plot <- ggplot(ob_gf_day, aes(x = j_set_day, y = prop_annual_tgt, group = year, color = year))+
+  geom_line()+
+  facet_wrap(~sector2)
+
+ggsave(season_plot, file = "season_plot.pdf")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
