@@ -1,0 +1,15 @@
+column_name,column_class,definition,currently_used
+data_source,character,"Source of data (WCGOP, ASHOP, or EM)",FALSE
+year,numeric,Year of vessel return to port,TRUE
+sector2,character,"Aggregated sector name, currently combines electronically-monitored and observed data",TRUE
+drvid,character,Vessel ID (Coast Guard documentation number or state registration number of vessel),TRUE
+gear,character,Gear name,FALSE
+r_port,character,Port of return (NA for at-sea sectors),TRUE
+r_date,POSIXct,Date of return (NA for at-sea sectors),FALSE
+trip_id,character,Unique trip identifier (NA for at-sea sectors),FALSE
+haul_id,character,Unique haul identifier,FALSE
+set_date,POSIXct,Set date,FALSE
+set_lat,numeric,Set latitude (decimal degrees),TRUE
+set_long,numeric,Set longitide (decimal degrees),TRUE
+ret_mt,numeric,Retained catch (metric tons),TRUE
+j_set_day,numeric,Julian set day,TRUE
