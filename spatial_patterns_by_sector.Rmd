@@ -1,0 +1,208 @@
+---
+title: "Groundfish spatial and seasonal patterns"
+output:
+  html_document:
+    df_print: paged
+  pdf: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE, 
+                      message = FALSE, cache.lazy = FALSE)
+
+```
+
+```{r load data, include = FALSE, cache = TRUE}
+#Reading in the prepped data off the drive
+ob_gf <- readRDS("Y:/Input/Richerson/groundfish_spatial/gf_haul.rds")
+
+```
+
+```{r load libraries, include = FALSE, cache = TRUE}
+library(tidyverse)
+library(lubridate)
+library(viridis)
+library(sinkr)
+```
+
+## Sectors included
+I'm including limited entry/catch shares bottom trawl, catch shares fixed gear (only active in recent years), state-permitted nearshore, open access fixed gear, limited-entry sablefish, limited entry fixed gear daily trip limit (aka zero-tier), at-sea hake, shoreside/midwater hake, and midwater rockfish sectors. The latter two sectors are now largely subject to electronic monitoring, rather than human observer coverage, and the EM data is not included here. I am including the EM data for preliminary analysis (not differentiating from observer data) but would need permission to go further with the EM data. In addition, nearshore, LE sablefish, OA fixed gear, and LE fixed gear DTL sectors are subject to partial observer coverage, while all other sectors have either EM or full observer coverage. 
+
+No logbook data (other than EM) is included. 
+
+## Seasonal patterns
+
+Cumulative retained landings by day of year. We might expect to see changes in the bottom trawl fishery before and after 2011, when management shifted from bimonthly limits to IFQs. It looks like there is possibly a shift to more fall landings in this sector in later years.
+
+Note in 2020 there was an emergency action to extend the sablefish primary season.
+
+```{r seasonal, echo = FALSE, cache = TRUE}
+
+ob_gf_day <- ob_gf %>%
+  group_by(sector2, j_set_day, year) %>%
+  summarise(day_ret = sum(ret_mt, na.rm=T)) %>%
+  ungroup() %>%
+  tidyr::complete(sector2, j_set_day, year, fill = list(day_ret = 0)) %>%
+  arrange(sector2, year, j_set_day) %>%
+  group_by(sector2, year) %>%
+  mutate(cum_day_ret = cumsum(day_ret)) %>%
+  mutate(annual_total_ret = sum(day_ret, na.rm = T)) %>%
+  mutate(prop_annual_ret = cum_day_ret/annual_total_ret)
+
+season_plot <- ggplot(ob_gf_day, aes(x = j_set_day, y = prop_annual_ret, group = year, color = year))+
+  geom_line()+
+  facet_wrap(~sector2)+
+  theme_bw()+
+  scale_color_viridis()+
+  xlab("Day of year")+
+  ylab("Proportion of annual total retained")+
+  ggtitle("Cumulative landings")+
+  NULL
+
+season_plot
+
+
+  
+
+```
+
+We can also look at the retained-weighted average fishing day.
+
+```{r average day, cache= TRUE, echo = FALSE}
+
+#Weighted average day of landing by year
+ob_gf_avg_day <- ob_gf %>% 
+  mutate(j_set_day = yday(set_date)) %>%
+  group_by(year, sector2) %>% 
+  summarise(mean_day = sum(j_set_day * ret_mt, na.rm =T)/sum(ret_mt, na.rm = T))
+
+avg_day_plot <- ggplot(ob_gf_avg_day, aes(x = year, y = mean_day)) +
+  geom_point()+
+  facet_wrap(~sector2, scales = "free_y")+
+  theme_bw()+
+  xlab("Year")+
+  ylab("Weighted average set day")+
+  ggtitle("Weighted average day of year")+
+  NULL
+
+avg_day_plot
+  
+```
+
+
+## Spatial patterns: COG and inertia
+
+Center of gravity and inertia, weighted by retained catch weight.
+
+```{r COG and inertia, echo=FALSE, catche=TRUE}
+
+ob_gf_cog <- ob_gf %>% 
+  group_by(sector2, year) %>% 
+  summarise(lat_cog = sum(set_lat * ret_mt, na.rm =T)/sum(ret_mt, na.rm = T),
+            lon_cog = sum(set_long * ret_mt, na.rm =T)/sum(ret_mt, na.rm = T),
+            inertia = sum(ret_mt *((set_lat - lat_cog)^2 + (set_long - lon_cog)^2), na.rm=T)/sum(ret_mt, na.rm=T))
+
+cog_plot <- ggplot(ob_gf_cog, aes(x = lon_cog, y = lat_cog, color = year)) +
+  geom_point()+
+  facet_wrap(~sector2, scales = "free")+
+  theme_bw()+
+  xlab("Longitude")+
+  ylab("Latitude")+
+  scale_color_viridis()+
+  ggtitle("Center of gravity")+
+  NULL
+
+cog_plot
+
+inertia_plot <- ggplot(ob_gf_cog, aes(x = year, y = inertia)) +
+  geom_point()+
+  facet_wrap(~sector2, scales = "free_y")+
+  theme_bw()+
+  xlab("Year")+
+  ylab("Inertia")+
+  ggtitle("Inertia")+
+  NULL
+
+inertia_plot
+```
+
+
+
+I also thought it could be interesting to look at average trip-level inertia. Are there changes in the amount of space fishermen are covering per trip? It looks like they may be in the LE/CS trawl fishery (potentially because they're doing more hauls per trip).
+```{r trip inertia, echo=FALSE, catche=TRUE}
+
+#NOTE sometimes trip-level inertia will be 0 if 0 retained....
+ob_gf_trip_cog <- ob_gf %>% 
+  group_by(sector2, year, trip_id) %>% 
+  summarise(lat_cog = sum(set_lat * ret_mt, na.rm =T)/sum(ret_mt, na.rm = T),
+            lon_cog = sum(set_long * ret_mt, na.rm =T)/sum(ret_mt, na.rm = T),
+            inertia = sum(ret_mt *((set_lat - lat_cog)^2 + (set_long - lon_cog)^2), na.rm=T)/sum(ret_mt, na.rm=T)) %>% 
+  group_by(sector2, year) %>% 
+  summarise(mean_inertia = mean(inertia, na.rm=T))
+
+trip_inertia_plot <- ggplot(ob_gf_trip_cog, aes(x = year, y = mean_inertia)) +
+  geom_point()+
+  facet_wrap(~sector2, scales = "free_y")+
+  theme_bw()+
+  xlab("Year")+
+  ylab("Mean trip-level inertia")+
+  ggtitle("Mean trip inertia")+
+  NULL
+
+trip_inertia_plot
+
+#Let's see if that's just because they're doing more hauls per trip
+ob_gf_trip_hauls<- ob_gf %>% 
+  group_by(sector2, year, trip_id) %>% 
+  summarise(n_hauls = n_distinct(haul_id)) %>% 
+  group_by(sector2, year) %>% 
+  summarise(mean_hauls = mean(n_hauls, na.rm=T))
+
+trip_hauls_plot <- ggplot(ob_gf_trip_hauls, aes(x = year, y = mean_hauls)) +
+  geom_bar(stat="identity")+
+  facet_wrap(~sector2, scales = "free_y")+
+  theme_bw()+
+  xlab("Year")+
+  ylab("Mean hauls or sets per trip")+
+  ggtitle("Mean hauls/sets per trip")+
+  NULL
+
+trip_hauls_plot
+
+```
+
+## Port analyses
+
+```{r ports per vessel, echo = FALSE, cache = TRUE}
+
+ob_gf_ports_per_ves <- ob_gf %>% 
+  group_by(sector2, drvid) %>% 
+  summarise(n_ports = n_distinct(r_port))
+
+ports_per_ves_plot <- ggplot(ob_gf_ports_per_ves, aes(x = n_ports))+
+  geom_histogram(stat="count", binwidth = 1)+
+  xlab("Number of return ports") +
+  ggtitle("Ports per vessel")+
+  facet_wrap(~sector2, scales = "free_y")+
+  scale_x_continuous(breaks = c(1:9), labels = c(1:9))+
+  theme_bw()+
+  NULL
+
+ports_per_ves_plot
+
+
+#Calculating distance from port -- revisit later
+# ports<-read_csv("ports_w_rport2.csv") 
+# library(sinkr)
+# ##Distance from port
+# ob_gf_dist_from_port <- ob_gf %>% 
+#   distinct(year, sector2, haul_id, trip_id, r_port)
+#   left_join(ports, by = "r_port") %>% 
+#   group_by(year, sector2, haul_id) %>% 
+#   summarise(port_dist = sinkr::earthDist(set_long, set_lat, PCID_LONG, PCID_LAT))
+
+
+
+```
+
