@@ -1,5 +1,6 @@
 #Setting up data: combining all "groundfish" sectors (i.e. sectors I think entirely or mostly target groundfish)
 #COMBINING OB, EM, ASHOP for now - need to be conscious that these data sources are all a bit different.
+#This is run on Tantalus and saved there, can then be pulled down locally. 
 
 #/opt/R/64-bit/R-4.0.1/bin/R
 
@@ -65,6 +66,49 @@ ashop_gf <- ASOrig_Proc %>%
 
 gf <- bind_rows(ob_gf, em_gf, ashop_gf)
 
-saveRDS(gf, "~/observer/Input/Richerson/groundfish_spatial/gf.rds")
+#we probably need the data on the haul, rather than species/group level
+#There is a small but non-zero possibility that a haul or trip ID could be repeated across different data sources, so I am appending with the data source to be sure they are unique identifiers
+gf_haul <- gf %>% 
+  group_by(data_source, year, sector2, drvid, gear, r_port, r_date, trip_id, haul_id, set_date, set_lat, set_long) %>% 
+  summarise(ret_mt= sum(ret_mt, na.rm=T)) %>% 
+  ungroup() %>% 
+  mutate(j_set_day = yday(set_date)) %>% 
+  mutate(haul_id = paste0(data_source, haul_id),
+         trip_id = ifelse(data_source == "ASHOP", NA, paste0(data_source, trip_id)))
+  
 
-my_data <- readRDS("Y:/Input/Richerson/groundfish_spatial/ob_gf_test.rds")
+saveRDS(gf_haul, "~/observer/Input/Richerson/groundfish_spatial/gf_haul.rds")
+
+fields <- data.frame(column_name = names(gf_haul), 
+                     column_class = unlist(lapply(gf_haul, function(column) {class(column)[1]})),
+                     definition = c("Source of data (WCGOP, ASHOP, or EM)",
+                                    "Year of vessel return to port",
+                                    "Aggregated sector name, currently combines electronically-monitored and observed data",
+                                    "Vessel ID (Coast Guard documentation number or state registration number of vessel)",
+                                    "Gear name",
+                                    "Port of return",
+                                    "Date of return",
+                                    "Unique trip identifier (NA for at-sea sector)",
+                                    "Unique haul identifier",
+                                    "Set date",
+                                    "Set latitude (decimal degrees)",
+                                    "Set longitide (decimal degrees)",
+                                    "Retained catch (metric tons)",
+                                    "Julian set day"),
+                     currently_used = c(F, 
+                                        T, 
+                                        T, 
+                                        T, 
+                                        F, 
+                                        T, 
+                                        F, 
+                                        F, 
+                                        F, 
+                                        F, 
+                                        T, 
+                                        T, 
+                                        T, 
+                                        T)
+                     ) #set_date class is actually "POSIXct" "POSIXt" but since the former inherits from the latter I think this works
+
+write_csv(fields, "~/observer/Input/Richerson/groundfish_spatial/fields_in_kr_data")
