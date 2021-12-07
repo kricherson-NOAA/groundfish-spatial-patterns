@@ -86,9 +86,9 @@ fields <- data.frame(column_name = names(gf_haul),
                                     "Aggregated sector name, currently combines electronically-monitored and observed data",
                                     "Vessel ID (Coast Guard documentation number or state registration number of vessel)",
                                     "Gear name",
-                                    "Port of return",
-                                    "Date of return",
-                                    "Unique trip identifier (NA for at-sea sector)",
+                                    "Port of return (NA for at-sea sectors)",
+                                    "Date of return (NA for at-sea sectors)",
+                                    "Unique trip identifier (NA for at-sea sectors)",
                                     "Unique haul identifier",
                                     "Set date",
                                     "Set latitude (decimal degrees)",
@@ -111,4 +111,4 @@ fields <- data.frame(column_name = names(gf_haul),
                                         T)
                      ) #set_date class is actually "POSIXct" "POSIXt" but since the former inherits from the latter I think this works
 
-write_csv(fields, "~/observer/Input/Richerson/groundfish_spatial/fields_in_kr_data")
+write_csv(fields, "~/observer/Input/Richerson/groundfish_spatial/fields_in_kr_data.csv")
