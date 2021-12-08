@@ -1,0 +1,338 @@
+---
+title: "Summary of AKFIN data"
+author: "EW"
+date: "11/16/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+library(dplyr)
+library(ggplot2)
+library(gganimate)
+library(zoo)
+library(Hmisc)
+library(lubridate)
+library(ggridges)
+# no date info. but we can look potentially at spatial shifts by
+# individual / fleets
+akfin <- readRDS("Data/subset_pfxcommercial_cleaned_allyears.rds")
+akfin$year = as.numeric(akfin$year)
+akfin = dplyr::filter(akfin, area %in% c("BSAI","GOA","INSD"))
+```
+
+### High level trends
+
+First, we can calculate high level summaries across the whole state (I don't think these are useful, but just doing it for comparison). These are latitude and longitude weighted by earnings.
+
+```{r echo=FALSE}
+# calculate weighted lat and lon by p_holder, and average across p_holders
+global = dplyr::filter(akfin, !is.na(lat), !is.na(lon), !is.na(g_earn)) %>% 
+  dplyr::group_by(year) %>% 
+  dplyr::summarise(w_x = wtd.mean(lon,g_earn),
+                   w_y = wtd.mean(lat,g_earn)) 
+
+global_avg = ggplot(global, aes(w_x, w_y,col=year)) + 
+  geom_point(alpha=0.6) + 
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("AK average") + 
+  scale_color_viridis_c(end=0.8)
+global_avg
+```
+
+\break  
+
+We can also look at high level summaries by permit. Again, probably not super useful These are latitude and longitude weighted by earnings.
+
+```{r fig.height=4}
+# summarize the same by permit
+permit = dplyr::filter(akfin, !is.na(lat), !is.na(lon), !is.na(g_earn)) %>% 
+  dplyr::group_by(year, p_fshy) %>% 
+  dplyr::summarise(w_x = wtd.mean(lon,g_earn),
+                   w_y = wtd.mean(lat,g_earn)) 
+
+permits_year = dplyr::group_by(permit, p_fshy) %>%
+  dplyr::summarise(n = length(unique(year))) %>% 
+  dplyr::filter(n >= 10)
+
+permit_avg = ggplot(dplyr::filter(permit, p_fshy%in%permits_year$p_fshy), aes(w_x, w_y,col=year)) + 
+  geom_point(alpha=0.6) + 
+  facet_wrap(~p_fshy, scale="free") + 
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Permit average") + 
+  scale_color_viridis_c(end=0.8)
+permit_avg
+```
+
+Per Jordan's suggestion, we could also do these by region and species. For example, rockfishes
+
+```{r}
+permit = dplyr::filter(akfin, !is.na(lat), !is.na(lon), !is.na(g_earn),
+                       specn %in% 135:194, area !="INSD") %>% 
+  dplyr::group_by(year, area) %>% 
+  dplyr::summarise(w_x = wtd.mean(lon,g_earn),
+                   w_y = wtd.mean(lat,g_earn)) 
+
+ggplot(permit, aes(w_x, w_y,col=year)) + 
+  geom_point(alpha=0.6) + 
+  facet_wrap(~area, scale="free") + 
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Regional averages -- rockfishes") + 
+  scale_color_viridis_c(end=0.8)
+```
+
+```{r}
+permit = dplyr::filter(akfin, !is.na(lat), !is.na(lon), !is.na(g_earn),
+                       specn %in% 270, area !="INSD")
+# split out floating catcher / processors in BSAI
+permit$area[which(permit$area == "GOA" & permit$port%in%c("FCP","IFP"))] = "FCPIFP"
+
+permit = permit %>% 
+  dplyr::group_by(year, area) %>% 
+  dplyr::summarise(w_x = wtd.mean(lon,g_earn),
+                   w_y = wtd.mean(lat,g_earn))
+
+ggplot(permit, aes(w_x, w_y,col=year)) + 
+  geom_point(alpha=0.6) + 
+  facet_wrap(~area, scale="free") + 
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Regional averages -- pollock") + 
+  scale_color_viridis_c(end=0.8)
+```
+
+
+
+Other metrics are things like the spatial variability -- this summarizing spatial variability in earnings / permit.
+
+```{r fig.height=4}
+# summarize the same by permit
+permit = dplyr::filter(dplyr::filter(akfin, !is.na(lat), !is.na(lon), !is.na(g_earn))) %>% 
+  dplyr::group_by(year, p_fshy) %>% 
+  dplyr::summarise(w_x = wtd.var(lon, g_earn),
+                   w_y = wtd.var(lat, g_earn),
+                   w_d = sqrt(w_x+w_y)) 
+
+permit_avg = ggplot(dplyr::filter(permit, p_fshy%in%permits_year$p_fshy), aes(year, w_d)) + 
+  geom_point(alpha=0.6) + 
+  facet_wrap(~p_fshy, scale="free") + 
+  xlab("Year") + ylab("SD of spatial variability") + 
+  ggtitle("Permit average") + 
+  scale_color_viridis_c(end=0.8)
+permit_avg
+```
+
+\break  
+
+It's also interesting to think about this at the port level. Summarizing port-level differences may be tricky if individuals are fishing out of multiple ports. In general ~ 35% of permit holders operate out of 1 port (across all years) -- and 70% have fished out of 3 or fewer ports -- so most permit holders are not switching a lot.  
+
+```{r, fig.height=5}
+ports = dplyr::group_by(akfin, p_holder, year) %>% 
+  dplyr::summarize(n = length(unique(port)))
+ggplot(ports, aes(n)) + 
+  geom_histogram() + 
+  ggtitle("Ports / permit holder")
+```
+
+\break  
+
+### Port level summaries
+
+A second level of change can be at the port level. Using permit holders who just fish out of 1 port in a year, we can look at summaries for the top ~ 5 ports. (Something weird going on with Dutch Harbor)
+
+```{r}
+# look at fishers who just fish a single port
+ports$p_holder_year = paste0(ports$p_holder,ports$year)
+akfin$p_holder_year = paste0(akfin$p_holder,akfin$year)
+
+singles = dplyr::filter(akfin, p_holder_year %in% ports$p_holder_year[which(ports$n==1)]) 
+
+top_ports = dplyr::group_by(singles, port) %>% 
+  dplyr::summarize(n = n(), sum_earn = sum(g_earn)) %>% 
+  dplyr::arrange(-sum_earn)
+
+#https://elandings.alaska.gov/elandings/PortLookup
+top_ports$port_na = as.numeric(top_ports$port)
+
+top_ports= dplyr::filter(top_ports, port %in% c("FCP","FLD","IFP")==FALSE, is.na(port_na))
+
+singles = dplyr::filter(singles, singles$port %in% top_ports$port[1:9])
+
+# look at averages by port
+port_avg = dplyr::group_by(singles, year, port) %>% 
+  dplyr::summarise(w_x = wtd.mean(lon,g_earn),
+                   w_y = wtd.mean(lat,g_earn))
+port_avg = ggplot(dplyr::filter(port_avg, w_x!=0), aes(w_x,w_y, col=year)) + 
+  geom_point() + 
+  facet_wrap(~port,scale="free") + 
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Port level average") + 
+  scale_color_viridis_c(end=0.8)
+port_avg
+```
+
+\break  
+
+These can be further summarized by permit or even species, e.g.
+
+```{r}
+# look at averages by port and permit
+port_permit_avg = dplyr::group_by(singles, year, port, p_fshy) %>% 
+  dplyr::summarise(w_x = wtd.mean(lon,g_earn),
+                   w_y = wtd.mean(lat,g_earn),
+                   v_x = wtd.var(lon, g_earn),
+                   v_y = wtd.var(lat, g_earn),
+                   w_d = sqrt(v_x+v_y))
+
+port_permits = dplyr::group_by(port_permit_avg, p_fshy) %>%
+  dplyr::summarise(n = length(unique(year))) %>% 
+  dplyr::filter(n >= 10)
+
+port_permit_avg = dplyr::filter(port_permit_avg, 
+                                p_fshy %in% port_permits$p_fshy)
+kod_avg = ggplot(dplyr::filter(port_permit_avg, port=="KOD"), aes(w_x, w_y, col=year)) + 
+  geom_point() + 
+  facet_wrap(~p_fshy, scale="free") +
+  scale_color_viridis_c(end=0.8) + 
+  ggtitle("Port level permit averages - KOD") +
+  xlab("Longitude") + ylab("Latitude")
+dut_avg = ggplot(dplyr::filter(port_permit_avg, port=="DUT"), aes(w_x, w_y, col=year)) + 
+  geom_point() + 
+  facet_wrap(~p_fshy, scale="free") +
+  scale_color_viridis_c(end=0.8) + 
+  ggtitle("Port level permit averages - DUT") +
+  xlab("Longitude") + ylab("Latitude")
+
+```
+
+```{r fig.height=4, fig.width=5}
+kod_avg
+```
+  
+```{r fig.height=4, fig.width=5}
+dut_avg
+```
+
+```{r fig.height=4.5}
+ggplot(dplyr::filter(port_permit_avg, port=="KOD"), aes(year, w_d, color=p_fshy)) + 
+  geom_point() + 
+  facet_wrap(~p_fshy, scale="free_y") +
+  scale_color_viridis_d(end=0.8) + 
+  ggtitle("Port level permit averages - KOD")
+```
+
+```{r fig.height=4.5}
+ggplot(dplyr::filter(port_permit_avg, port=="DUT"), aes(year, w_d, color=p_fshy)) + 
+  geom_point() + 
+  facet_wrap(~p_fshy, scale="free_y") +
+  scale_color_viridis_d(end=0.8) + 
+  ggtitle("Port level permit averages - DUT")
+```
+
+
+
+\break  
+
+### Individual measures of variability 
+
+The approaches above all summarize weighted spatial position by earnings, which is a summary of the resource extraction across all vessels in a year. 
+
+Another question though if we want to understand the fleet behavior is what the average permit holder is doing. The difference in calculating this vs the metrics above is that instead of weighted averages being calcualted (across permit holders/vessels), we calculate the weighted average for each permit holder, then average across them. 
+
+The first metric is the standard deviation of spatial variability over time (averaged at the port level) for permit holders associated with single ports.  
+
+```{r}
+
+port_permit_avg = dplyr::group_by(singles, year, p_holder) %>% 
+  dplyr::summarise(w_x = wtd.var(lon,g_earn),
+                   w_y = wtd.var(lat,g_earn),
+                   w_d = sqrt(w_x+w_y),
+                   port=port[1]) %>%
+  dplyr::group_by(year,port) %>%
+  dplyr::summarise(w_d = mean(w_d))
+
+ggplot(port_permit_avg, aes(year, w_d)) + 
+  geom_line(alpha=0.4) + 
+  geom_point() + 
+  facet_wrap(~port,scale="free_y") + 
+  ylab("SD of individual spatial variability") + 
+  xlab("Year") +  
+  scale_color_viridis_d(end=0.8)
+
+```
+
+\break  
+
+As above, we can also break this out by individual permits. If trends in variability are real, then we'd also expect to see them at the permit level (and not because permit holders are joining/dropping out or fishing different permits)
+
+```{r}
+port_permit_avg = dplyr::group_by(singles, year, p_holder, p_fshy) %>% 
+  dplyr::summarise(w_x = wtd.var(lon,g_earn),
+                   w_y = wtd.var(lat,g_earn),
+                   w_d = sqrt(w_x+w_y),
+                   port=port[1], 
+                   n = n()) 
+
+port_permits = dplyr::group_by(port_permit_avg, p_fshy) %>%
+  dplyr::summarise(n = length(unique(year))) %>% 
+  dplyr::filter(n >= 10)
+
+port_permit_avg = dplyr::filter(port_permit_avg, 
+                                p_fshy %in% port_permits$p_fshy)
+
+port_permit_avg = dplyr::group_by(port_permit_avg, year,port, p_fshy) %>%
+  dplyr::summarise(w_d = mean(w_d))
+
+ggplot(dplyr::filter(port_permit_avg, port=="KOD"), 
+       aes(year, w_d, col = p_fshy)) + 
+  geom_point() + scale_color_viridis_d(end=0.8) + 
+  facet_wrap(~p_fshy, scale="free_y")
+```
+
+\break  
+
+### Seasonal variation 
+
+Starting with the same dataset of permit holders associated with individual ports, we can look at the seasonal distribution of catch by year. 
+
+```{r}
+singles$month = as.numeric(substr(singles$date, 5, 6))
+singles$day = as.numeric(substr(singles$date, 7, 8))
+singles$date = parse_date_time(paste(singles$month, singles$day, singles$year), orders="mdy")
+singles$yday = yday(singles$date)
+
+kod = dplyr::filter(singles, port=="KOD")
+
+# we could show the raw fish tickets
+# ggplot(kod, aes(yday, year, group=year)) + 
+#   geom_density_ridges() + 
+#   xlab("Calendar day") + 
+#   ylab("Year") + 
+#   ggtitle("Distribution of fish tickets -- KOD")
+
+# but more useful to generate samples in proportion to earnings
+kod$id = seq(1,nrow(kod))
+set.seed(123)
+kod_sample = sample(kod$id, size=nrow(kod), replace=T, prob = kod$g_earn)
+
+ggplot(kod[kod_sample,], aes(yday, year, group=year)) + 
+geom_density_ridges() + 
+xlab("Calendar day") + 
+ylab("Year") + 
+ggtitle("Distribution of earnings -- KOD")
+
+sit = dplyr::filter(singles, p_fshy=="C 06B", port=="SIT")
+sit$id = seq(1,nrow(sit))
+set.seed(123)
+sit_sample = sample(sit$id, size=nrow(sit), replace=T, prob = sit$g_earn)
+```
+
+```{r}
+
+ggplot(sit[sit_sample,], aes(yday, year, group=year)) + 
+geom_density_ridges() + 
+xlab("Calendar day") + 
+ylab("Year") + 
+ggtitle("Distribution of earnings -- SITKA C 06B")
+
+```
+
