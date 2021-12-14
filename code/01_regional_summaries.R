@@ -189,7 +189,9 @@ for(i in 1:length(unique(sub$v))) {
     ggtitle(paste0("Distribution of landings: ",unique(sub$v)[i]))
 }
 
-
+# aggregate by year and day
+# write.csv(dplyr::group_by(dplyr::filter(sub, v == unique(sub$v)[i]), j_set_day, year) %>%
+#   dplyr::summarise(tot = sum(ret_mt)), "demo.csv")
 
 pdf(paste0("output/",scale,"_summaries_",data,".pdf"))
 gridExtra::grid.arrange(p1,p2)
