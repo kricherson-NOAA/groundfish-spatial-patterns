@@ -14,12 +14,19 @@ n_top_ports <- 10
 #Do we want to include the at-sea fleet?
 exclude_atsea <- c(TRUE, FALSE)[1]
 
+#Split west coast into north/south of 40 10?
+split_wc <- c("north_south", "one_area")[2]
+
 if(data == "Alaska") {
   d <- readRDS("Data/subset_pfxcommercial_cleaned_allyears_renamed.rds")
 } else {
-  # Kate -- add file here
+  
   d <- readRDS("Data/gf_haul.rds")
-  d$area <- "WC"
+  
+  if(split_wc == "one_area")
+  {
+    d$area <- "WC"
+  }
   
   if(exclude_atsea)
   {
@@ -243,7 +250,7 @@ p12 <- ggplot(haul_dist_ind, aes(year, mean_ind_haul_dist, color = sector2)) +
   facet_wrap(~v, scale="free_y")
 
 
-pdf(paste0("output/",scale,"_summaries_",data,".pdf"))
+pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
 gridExtra::grid.arrange(p1,p2)
 print(p4)
 print(p5)

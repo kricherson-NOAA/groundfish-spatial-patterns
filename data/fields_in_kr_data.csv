@@ -15,3 +15,4 @@ ret_mt,numeric,Retained catch (metric tons),TRUE
 j_set_day,numeric,Julian set day,TRUE
 r_port_lat,numeric,Latitude of return port,TRUE
 r_port_long,numeric,Longitude of return port,TRUE
+area,character,Return port is north or south of 40 10,TRUE
