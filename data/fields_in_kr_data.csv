@@ -6,10 +6,12 @@ drvid,character,Vessel ID (Coast Guard documentation number or state registratio
 gear,character,Gear name,FALSE
 r_port,character,Port of return (NA for at-sea sectors),TRUE
 r_date,POSIXct,Date of return (NA for at-sea sectors),FALSE
-trip_id,character,Unique trip identifier (NA for at-sea sectors),FALSE
-haul_id,character,Unique haul identifier,FALSE
-set_date,POSIXct,Set date,FALSE
+trip_id,character,Unique trip identifier (NA for at-sea sectors),TRUE
+haul_id,character,Unique haul identifier,TRUE
+set_date,POSIXct,Set date,TRUE
 set_lat,numeric,Set latitude (decimal degrees),TRUE
 set_long,numeric,Set longitide (decimal degrees),TRUE
 ret_mt,numeric,Retained catch (metric tons),TRUE
 j_set_day,numeric,Julian set day,TRUE
+r_port_lat,numeric,Latitude of return port,TRUE
+r_port_long,numeric,Longitude of return port,TRUE
