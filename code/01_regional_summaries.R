@@ -4,17 +4,27 @@ library(zoo)
 library(Hmisc)
 library(lubridate)
 library(ggridges)
+library(sinkr) #Has a function to calculate distance in km between two points
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
-data <- "Alaska"
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 n_top_ports <- 10
+
+#Do we want to include the at-sea fleet?
+exclude_atsea <- c(TRUE, FALSE)[1]
 
 if(data == "Alaska") {
   d <- readRDS("Data/subset_pfxcommercial_cleaned_allyears_renamed.rds")
 } else {
   # Kate -- add file here
+  d <- readRDS("Data/gf_haul.rds")
   d$area <- "WC"
+  
+  if(exclude_atsea)
+  {
+    d <- dplyr::filter(d, data_source != "ASHOP")
+  }
 }
 
 # Switch for making plots by port or area
@@ -38,6 +48,9 @@ port_fisher = dplyr::group_by(d, year, drvid) %>%
                    port_fisher = paste(year, drvid)) %>%
   dplyr::filter(n == 1)
 
+#I get an error about "$ operator is invalid for atomic vectors" when filtering to data to port_fisher %in% port_fisher$port_fisher, this is a workaround -KR
+single_port_fishers <- port_fisher$port_fisher
+
 # do coarse summaries by area and year
 area_cog <-
   dplyr::filter(d, r_port %in% port_list) %>%
@@ -50,7 +63,7 @@ area_cog <-
                    total_sd = sqrt(lat_sd^2 + long_sd^2),
                    individuals="Ind. ignored")
 # do same -- but vessel/individual averages
-area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% port_fisher$port_fisher) %>%
+area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
   dplyr::group_by(v, drvid, year) %>%
   dplyr::summarize(n = n(),
                    sum_mt = sum(ret_mt),
@@ -83,7 +96,7 @@ area_permit_cog <-
 
 # do same -- but vessel/individual averages
 area_permit_cog_ind <-
-  dplyr::filter(d, r_port %in% port_list, port_fisher %in% port_fisher$port_fisher) %>%
+  dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
   dplyr::group_by(v, sector2, drvid, year) %>%
   dplyr::summarize(n = n(),
                    sum_mt = sum(ret_mt),
@@ -101,6 +114,25 @@ area_permit_cog_ind <-
                    long_sd = mean(long_sd),
                    total_sd = mean(total_sd),
                    individuals="Ind. averaged")
+
+#Calculating distance from return port. For WC, this is the haul distance from port
+#First, taken over all observations
+haul_dist <- 
+  dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
+  dplyr::group_by(v, sector2, year, haul_id) %>%
+  dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat)) %>% 
+  dplyr::group_by(v, sector2, year) %>% 
+  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T))
+
+#Second, taken over individuals/vessels, then across port/sector
+haul_dist_ind <- 
+  dplyr::filter(d, r_port %in% port_list) %>%
+  dplyr::group_by(v, sector2, year, drvid, haul_id) %>%
+  dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat)) %>% 
+  dplyr::group_by(v, sector2, year, drvid) %>% 
+  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T)) %>% 
+  dplyr::group_by(v, sector2, year) %>% 
+  dplyr::summarise(mean_ind_haul_dist = mean(mean_haul_dist, na.rm = T))
 
 p1 <- ggplot(area_cog, aes(lon_mean, lat_mean,col=year)) +
   geom_point(alpha=0.6) +
@@ -140,12 +172,13 @@ p6 <- ggplot(area_cog, aes(year, total_sd)) +
   ylab("Sqrt inertia") +
   ggtitle("Individuals ignored") +
   facet_wrap(~v, scale="free_y")
+
 p7 <- ggplot(area_cog_ind, aes(year, total_sd)) +
   geom_line() +
   xlab("Year") +
   ylab("Sqrt inertia") +
   ggtitle("Individual averages") +
-  facet_wrap(~area, scale="free_y")
+  facet_wrap(~v, scale="free_y") #
 
 p8 <- ggplot(area_permit_cog, aes(year, total_sd)) +
   geom_line() +
@@ -153,6 +186,7 @@ p8 <- ggplot(area_permit_cog, aes(year, total_sd)) +
   ylab("Sqrt inertia") +
   ggtitle("Individuals ignored") +
   facet_grid(sector2~v, scale="free_y")
+
 p9 <- ggplot(area_permit_cog_ind, aes(year, total_sd)) +
   geom_line() +
   xlab("Year") +
@@ -193,6 +227,22 @@ for(i in 1:length(unique(sub$v))) {
 # write.csv(dplyr::group_by(dplyr::filter(sub, v == unique(sub$v)[i]), j_set_day, year) %>%
 #   dplyr::summarise(tot = sum(ret_mt)), "demo.csv")
 
+#Distance to port plots
+p11 <- ggplot(haul_dist, aes(year, mean_haul_dist, color = sector2)) +
+  geom_line() +
+  xlab("Year") +
+  ylab("Mean haul dist to port (km)") +
+  ggtitle("Individuals ignored") +
+  facet_wrap(~v, scale="free_y")
+
+p12 <- ggplot(haul_dist_ind, aes(year, mean_ind_haul_dist, color = sector2)) +
+  geom_line() +
+  xlab("Year") +
+  ylab("Mean haul dist to port (km)") +
+  ggtitle("Individual averages") +
+  facet_wrap(~v, scale="free_y")
+
+
 pdf(paste0("output/",scale,"_summaries_",data,".pdf"))
 gridExtra::grid.arrange(p1,p2)
 print(p4)
@@ -204,6 +254,8 @@ p10
 for(i in 1:length(plot_list)) {
   print(plot_list[[i]])
 }
+p11
+p12
 dev.off()
 
 
