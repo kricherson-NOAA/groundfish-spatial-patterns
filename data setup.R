@@ -78,7 +78,8 @@ gf_haul0 <- gf %>%
   ungroup() %>% 
   mutate(j_set_day = yday(set_date)) %>% 
   mutate(haul_id = paste0(data_source, haul_id),
-         trip_id = ifelse(data_source == "ASHOP", NA, paste0(data_source, trip_id)))
+         trip_id = ifelse(data_source == "ASHOP", NA, paste0(data_source, trip_id))) %>% 
+  mutate(r_port = ifelse(r_port == "WARRENTON", "ASTORIA / WARRENTON", r_port))
 
 #Add in return port lat/long
 r_ports <- read_csv("~/observer/Input/Richerson/iopac_ob_conversion_table.csv") %>% 
@@ -87,7 +88,9 @@ r_ports <- read_csv("~/observer/Input/Richerson/iopac_ob_conversion_table.csv") 
   filter(!is.na(r_port))
 
 gf_haul <- gf_haul0 %>% 
-  left_join(r_ports, by = "r_port")
+  left_join(r_ports, by = "r_port") %>% 
+  mutate(area = ifelse (r_port_lat >= 40 + 1/16, "north", "south"),
+         area = ifelse(r_port == "AT SEA - NO RETURN PORT", "at sea", area))
 
 nrow(gf_haul) == nrow(gf_haul0)
 
@@ -110,7 +113,8 @@ fields <- data.frame(column_name = names(gf_haul),
                                     "Retained catch (metric tons)",
                                     "Julian set day",
                                     "Latitude of return port",
-                                    "Longitude of return port"),
+                                    "Longitude of return port",
+                                    "Return port is north or south of 40 10"),
                      currently_used = c(F, 
                                         T, 
                                         T, 
@@ -125,6 +129,7 @@ fields <- data.frame(column_name = names(gf_haul),
                                         T, 
                                         T, 
                                         T, 
+                                        T,
                                         T,
                                         T)
                      ) #set_date class is actually "POSIXct" "POSIXt" but since the former inherits from the latter I think this works
