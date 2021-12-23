@@ -10,7 +10,7 @@ library(lubridate)
 
 source("~/observer/Input/load_data_2021-09-30.R")
 
-load_data(c("WCGOP_proc_full", "EM_proc", "ASHOP_proc"))
+load_data(c("WCGOP_proc_full", "EM_proc", "ASHOP_proc", "FT_proc"))
 
 
 #Pulling out fields we MAY want at some point - some of these probably not needed
@@ -135,3 +135,36 @@ fields <- data.frame(column_name = names(gf_haul),
                      ) #set_date class is actually "POSIXct" "POSIXt" but since the former inherits from the latter I think this works
 
 write_csv(fields, "~/observer/Input/Richerson/groundfish_spatial/fields_in_kr_data.csv")
+
+#Let's also output the FT data, grouped by FT
+ft <- FTOrig_Proc %>% 
+  clean_names() %>% 
+  filter(sector %in% c("Limited Entry Trawl", 
+                       "Catch Shares",
+                       "Midwater Hake",
+                       "Midwater Rockfish",
+                       "Shoreside Hake",
+                       "OA Fixed Gear",
+                       "Limited Entry Sablefish",
+                       "LE Fixed Gear DTL",
+                       "Nearshore")) %>% 
+  mutate(sector2 = ifelse(sector %in% c("Limited Entry Trawl", "Catch Shares") &
+                            gear %in% c("Bottom Trawl", "Midwater Trawl"), "LE/CS Trawl", sector)) %>% 
+  mutate(sector2 = ifelse(sector == "Catch Shares" &
+                            !gear %in% c("Bottom Trawl", "Midwater Trawl"), "CS Fixed Gear", sector2)) %>% 
+  mutate(sector2 = ifelse(grepl("Hake", sector), "Shoreside/midwater Hake", sector2)) %>% 
+  group_by(year, agency_code, sector, sector2, drvid, gear, landing_date, pacfin_port_code, latitude_port, ftid) %>% 
+  summarize(mt = sum(mt),
+            tgt_mt = sum(tgt_mt),
+            gfr_mt = sum(gfr_mt),
+            exvessel_revenue = sum(exvessel_revenue)) %>% 
+  mutate(data_source = "FT") %>% 
+  mutate(drvid = as.character(drvid)) %>% 
+  ungroup() %>% 
+  mutate(area = ifelse (latitude_port >= 40 + 1/16, "north", "south"))
+
+saveRDS(ft, "~/observer/Input/Richerson/groundfish_spatial/ft.rds")
+
+
+
+  
