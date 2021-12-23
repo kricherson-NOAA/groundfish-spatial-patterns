@@ -8,30 +8,37 @@ library(sinkr) #Has a function to calculate distance in km between two points
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
 data <- c("Alaska", "WC")[2]
-scale = c("region","port")[2]
+scale = c("region","port")[1]
 n_top_ports <- 10
 
-#Do we want to include the at-sea fleet?
-exclude_atsea <- c(TRUE, FALSE)[1]
-
 #Split west coast into north/south of 40 10?
-split_wc <- c("north_south", "one_area")[2]
+split_wc <- c("north_south", "one_area")[1]
+
+#Which WC sectors to include?
+wc_sectors <- c("LE/CS Trawl",
+                "OA Fixed Gear",
+                "Limited Entry Sablefish",
+                "LE Fixed Gear DTL",
+                "Nearshore",
+                "At-sea hake CP",
+                "At-sea hake MS",
+                "CS Fixed Gear",
+                "Shoreside/midwater Hake")[1:7]
 
 if(data == "Alaska") {
   d <- readRDS("Data/subset_pfxcommercial_cleaned_allyears_renamed.rds")
 } else {
   
-  d <- readRDS("Data/gf_haul.rds")
+  d <- readRDS("Data/gf_haul.rds") %>% 
+    dplyr::filter(sector2 %in% wc_sectors)
   
   if(split_wc == "one_area")
   {
     d$area <- "WC"
   }
   
-  if(exclude_atsea)
-  {
-    d <- dplyr::filter(d, data_source != "ASHOP")
-  }
+ ft <- readRDS()
+  
 }
 
 # Switch for making plots by port or area
@@ -219,6 +226,15 @@ p10 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day,
   ylab("Year") +
   ggtitle("Distribution of landings")
 
+#Also plot by sector
+p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day, year, group=year)) +
+  geom_density_ridges() +
+  xlab("Calendar day") +
+  ylab("Year") +
+  ggtitle("Distribution of landings")+
+  facet_wrap(~sector2, scales = "free")
+
+
 
 plot_list <- list()
 sub = dplyr::filter(d[d_sample,], r_port %in% port_list)
@@ -235,14 +251,14 @@ for(i in 1:length(unique(sub$v))) {
 #   dplyr::summarise(tot = sum(ret_mt)), "demo.csv")
 
 #Distance to port plots
-p11 <- ggplot(haul_dist, aes(year, mean_haul_dist, color = sector2)) +
+p12 <- ggplot(haul_dist, aes(year, mean_haul_dist, color = sector2)) +
   geom_line() +
   xlab("Year") +
   ylab("Mean haul dist to port (km)") +
   ggtitle("Individuals ignored") +
   facet_wrap(~v, scale="free_y")
 
-p12 <- ggplot(haul_dist_ind, aes(year, mean_ind_haul_dist, color = sector2)) +
+p13 <- ggplot(haul_dist_ind, aes(year, mean_ind_haul_dist, color = sector2)) +
   geom_line() +
   xlab("Year") +
   ylab("Mean haul dist to port (km)") +
@@ -258,11 +274,12 @@ gridExtra::grid.arrange(p6, p7)
 p8
 p9
 p10
+p11
 for(i in 1:length(plot_list)) {
   print(plot_list[[i]])
 }
-p11
 p12
+p13
 dev.off()
 
 
