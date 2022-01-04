@@ -30,14 +30,18 @@ if(data == "Alaska") {
 } else {
   
   d <- readRDS("Data/gf_haul.rds") %>% 
-    dplyr::filter(sector2 %in% wc_sectors)
+    dplyr::filter(sector2 %in% wc_sectors) %>% 
+    dplyr::mutate(sector2 = ifelse(grepl("At-sea hake", sector2),
+                                   "At-sea hake",
+                                   sector2)) #Combine at-sea CP and MS for now
   
   if(split_wc == "one_area")
   {
     d$area <- "WC"
   }
   
- ft <- readRDS("Data/ft.rds")
+ ft <- readRDS("Data/ft.rds") %>% 
+   dplyr::filter(sector2 %in% wc_sectors)
   
 }
 
@@ -168,7 +172,7 @@ p3 <- gridExtra::grid.arrange(p1,p2)
 p4 <- ggplot(area_permit_cog, aes(lon_mean, lat_mean,col=year)) +
   geom_point(alpha=0.6) +
   xlab("Longitude") + ylab("Latitude") +
-  facet_grid(sector2 ~ v, scale="free") +
+  facet_grid(sector2 ~ v, scale ="free") +
   ggtitle("Individuals ignored") +
   scale_color_viridis_c(end=0.8)
 
@@ -234,8 +238,6 @@ p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day,
   ggtitle("Distribution of landings")+
   facet_wrap(~sector2, scales = "free")
 
-
-
 plot_list <- list()
 sub = dplyr::filter(d[d_sample,], r_port %in% port_list)
 for(i in 1:length(unique(sub$v))) {
@@ -245,6 +247,42 @@ for(i in 1:length(unique(sub$v))) {
     ylab("Year") +
     ggtitle(paste0("Distribution of landings: ",unique(sub$v)[i]))
 }
+
+#For WC, let's also plot fish ticket landings since partial observer coverage makes seasonal patterns harder to discern
+if (data == "WC")
+{
+  ft$id = seq(1,nrow(ft))
+  ft_sample = sample(ft$id, size=nrow(ft), replace=T, prob = ft$mt)
+  
+  #Note: not filtering by port for now
+  p10 <- ggplot(ft[ft_sample,], aes(yday(landing_date), year, group=year)) +
+    geom_density_ridges() +
+    xlab("Calendar day") +
+    ylab("Year") +
+    ggtitle("Distribution of landings (fish tickets)")
+  
+  
+  p11 <- ggplot(ft[ft_sample,], aes(yday(landing_date), year, group=year)) +
+    geom_density_ridges() +
+    xlab("Calendar day") +
+    ylab("Year") +
+    ggtitle("Distribution of landings (fish tickets)")+
+    facet_grid(area~sector2, scales = "free")
+  
+  plot_list <- list()
+  sub = ft[ft_sample,] %>% 
+    dplyr::mutate(j_landing_date = yday(landing_date))
+  
+  for(i in 1:length(unique(sub$area))) {
+    plot_list[[i]] <- ggplot(dplyr::filter(sub, area == unique(sub$area)[i]), aes(j_landing_date, year, group=year)) +
+      geom_density_ridges() +
+      xlab("Calendar day") +
+      ylab("Year") +
+      ggtitle(paste0("Distribution of landings: ",unique(sub$area)[i]))
+  }
+}
+
+
 
 # aggregate by year and day
 # write.csv(dplyr::group_by(dplyr::filter(sub, v == unique(sub$v)[i]), j_set_day, year) %>%
