@@ -315,22 +315,44 @@ p13 <- ggplot(dplyr::filter(haul_dist_ind, v != "at sea"), aes(year, mean_ind_ha
 # this is calculated separately by person and year, and then averaged across people
 season_eff <- dplyr::filter(d, port_fisher %in% port_fisher) %>%
   dplyr::group_by(year, drvid, j_set_day) %>%
-  dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1]) %>% # calculate sum by person-day-year
+  dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
+                   port = r_port[1]) %>% # calculate sum by person-day-year
   dplyr::group_by(year, drvid) %>%  # sum across days
   dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
-season_eff <- dplyr::group_by(season_eff, year, drvid) %>%
+
+# calculate weighted avg across fishers by retained catch --
+season_all_ports <- dplyr::group_by(season_eff, year, drvid) %>%
   dplyr::summarize(sector2 = sector2[1],
                    ret_yr = ret_yr[1],
-                   sum_p2 = sum(norm_ret^2))
-# calculate weighted avg across fishers by retained catch --
-season_eff <- dplyr::group_by(season_eff, year, sector2) %>%
+                   sum_p2 = sum(norm_ret^2)) %>%
+  dplyr::group_by(year, sector2) %>%
   dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr))
 
-p14 <- ggplot(season_eff, aes(year,eff_days)) +
+p14 <- ggplot(season_all_ports, aes(year,eff_days)) +
   geom_line() +
   facet_wrap(~sector2, scale="free_y") +
   ylab("Effective days fished") +
   xlab("Year") + theme_bw()
+
+# do same, calculating seasonal trends by port for top ports
+season_by_ports <-
+  # dplyr::filter(season_eff, port %in% port_list) %>%
+  dplyr::group_by(season_eff, year, drvid) %>%
+  dplyr::summarize(sector2 = sector2[1],
+                   ret_yr = ret_yr[1],
+                   sum_p2 = sum(norm_ret^2),
+                   r_port = port[1])
+
+season_by_ports = dplyr::group_by(season_by_ports, year, sector2, r_port) %>%
+  dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr)) %>%
+  dplyr::filter(r_port %in% port_list)
+
+p15 <- ggplot(season_by_ports, aes(year,eff_days, group=r_port, col=r_port)) +
+  geom_line() +
+  facet_wrap(~sector2, scale="free_y") +
+  ylab("Effective days fished") +
+  xlab("Year") + theme_bw()
+
 
 pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
 gridExtra::grid.arrange(p1,p2)
@@ -347,6 +369,7 @@ for(i in 1:length(plot_list)) {
 p12
 p13
 p14
+p15
 dev.off()
 
 
