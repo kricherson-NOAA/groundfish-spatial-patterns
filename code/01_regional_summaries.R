@@ -37,7 +37,7 @@ if(data == "Alaska") {
     d$area <- "WC"
   }
   
- ft <- readRDS()
+ ft <- readRDS("Data/ft.rds")
   
 }
 
