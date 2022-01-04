@@ -289,19 +289,19 @@ if (data == "WC")
 #   dplyr::summarise(tot = sum(ret_mt)), "demo.csv")
 
 #Distance to port plots
-p12 <- ggplot(haul_dist, aes(year, mean_haul_dist, color = sector2)) +
+p12 <- ggplot(dplyr::filter(haul_dist, v != "at sea"), aes(year, mean_haul_dist, color = sector2)) +
   geom_line() +
   xlab("Year") +
   ylab("Mean haul dist to port (km)") +
   ggtitle("Individuals ignored") +
-  facet_wrap(~v, scale="free_y")
+  facet_grid(sector2~v, scale="free_y")
 
-p13 <- ggplot(haul_dist_ind, aes(year, mean_ind_haul_dist, color = sector2)) +
+p13 <- ggplot(dplyr::filter(haul_dist_ind, v != "at sea"), aes(year, mean_ind_haul_dist, color = sector2)) +
   geom_line() +
   xlab("Year") +
   ylab("Mean haul dist to port (km)") +
   ggtitle("Individual averages") +
-  facet_wrap(~v, scale="free_y")
+  facet_grid(sector2~v, scale="free_y")
 
 
 pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
