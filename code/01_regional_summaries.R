@@ -351,7 +351,8 @@ p15 <- ggplot(season_by_ports, aes(year,eff_days, group=r_port, col=r_port)) +
   geom_line() +
   facet_wrap(~sector2, scale="free_y") +
   ylab("Effective days fished") +
-  xlab("Year") + theme_bw()
+  xlab("Year") + theme_bw()+
+  {if(data == "WC") theme(legend.title = element_text( size=2), legend.text=element_text(size=2))}
 
 
 pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
