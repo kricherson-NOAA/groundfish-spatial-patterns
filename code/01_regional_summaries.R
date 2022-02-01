@@ -5,6 +5,11 @@ library(Hmisc)
 library(lubridate)
 library(ggridges)
 library(sinkr) #Has a function to calculate distance in km between two points
+library(raster)
+library(maps)
+library(mapproj)
+library(viridis)
+library(tidyr)
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
 data <- c("Alaska", "WC")[2]
@@ -47,8 +52,9 @@ if(data == "Alaska") {
 
  ft <- readRDS("Data/ft.rds") %>%
    dplyr::filter(sector2 %in% wc_sectors)
-
+ 
 }
+
 
 # Switch for making plots by port or area
 if(scale=="port") {
@@ -354,6 +360,95 @@ p15 <- ggplot(season_by_ports, aes(year,eff_days, group=r_port, col=r_port)) +
   xlab("Year") + theme_bw()+
   {if(data == "WC") theme(legend.title = element_text( size=2), legend.text=element_text(size=2))}
 
+### Create spatial anomaly maps
+#These plot the anomaly in each spatial pixel
+
+#Create raster grid. Resolution is currently arbitrary
+ras <- raster(xmn=min(d$set_long), xmx=max(d$set_long), ymn=min(d$set_lat), ymx=max(d$set_lat), res=0.25, crs="+proj=longlat")# +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+#Create empty data frame to store results
+d_grid <- data.frame(year= numeric(),
+                     sector2 = character(),
+                     set_lat = numeric(), 
+                     set_long = numeric(),
+                     var = character(),
+                     stringsAsFactors=FALSE) 
+
+#Loop over years, sectors to grid the data using the raster above
+for(y in 1:(length(unique(d$year))))
+{
+  
+  for(s in 1:length(unique(d$sector2)))
+  {
+    dat <- filter(d, year == unique(d$year)[y] & sector2 == unique(d$sector2)[s])
+    
+    if(nrow(dat > 0))
+    {
+      vessels_ras<-rasterize(cbind(dat$set_long, dat$set_lat), ras, dat$drvid, fun=n_distinct)
+      retained_ras<-rasterize(cbind(dat$set_long, dat$set_lat), ras, dat$ret_mt, fun=sum)
+      #hauls_ras<-rasterize(cbind(dat$set_long, dat$set_lat), ras, dat$haul_id, fun=n_distinct)
+      
+      vessels_df <- rasterToPoints(vessels_ras) %>%
+        as.data.frame() %>% 
+        mutate(var = "n_vessels")
+      
+      retained_df <- rasterToPoints(retained_ras) %>%
+        as.data.frame() %>% 
+        mutate(var = "ret_mt")
+      
+      # hauls_df <- rasterToPoints(hauls_ras) %>%
+      #   as.data.frame() %>% 
+      #   mutate(var = "n_hauls")
+      
+      df <- bind_rows(vessels_df, retained_df) %>% 
+        mutate(year = dat$year[1],
+               sector2 = dat$sector2[1]) %>% 
+        rename(set_long = x, set_lat = y, value = layer)
+      
+      d_grid <- bind_rows(d_grid, df)
+    }
+    
+    
+  }
+  
+}
+
+#Fill in 0s for cells where there was no observed effort in a given year/sector, then calculate anomalies
+d_grid <- d_grid %>% 
+  complete(year, var, nesting(sector2, set_lat, set_long), fill = list(value = 0)) %>% 
+  group_by(set_long, set_lat, sector2, var) %>% 
+  mutate(mean = mean(value),
+         sd  = sd(value)) %>% 
+  ungroup() %>% 
+  mutate(anom = (value - mean)/sd)
+
+
+plot_list2 <- list() 
+plot_list3 <- list() 
+
+#Make anomaly plots
+for (s in 1:length(unique(d$sector2)))
+{
+  plot_list2[[s]] <- ggplot() +
+  geom_tile(data = filter(d_grid, sector2 == unique(d$sector2)[s] & var == "ret_mt"), aes(x = set_long, y = set_lat, fill = anom))+
+  borders("state")+
+  coord_map(xlim = c(min(d$set_long),max(d$set_long)),ylim = c(min(d$set_lat), max(d$set_lat)))+
+  facet_wrap(~year)+
+  scale_fill_viridis()+
+  theme_bw()+
+  ggtitle(paste("Retained catch weight,", unique(d$sector2)[s]))
+  
+  plot_list3[[s]] <- ggplot() +
+  geom_tile(data = filter(d_grid, sector2 == unique(d$sector2)[s] & var == "n_vessels"), aes(x = set_long, y = set_lat, fill = anom))+
+  borders("state")+
+  coord_map(xlim = c(min(d$set_long),max(d$set_long)),ylim = c(min(d$set_lat), max(d$set_lat)))+
+  facet_wrap(~year)+
+  scale_fill_viridis()+
+  theme_bw()+
+  ggtitle(paste("Number of vessels,", unique(d$sector2)[s]))
+  
+}
+
 
 pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
 gridExtra::grid.arrange(p1,p2)
@@ -371,6 +466,13 @@ p12
 p13
 p14
 p15
+for(i in 1:length(plot_list2)) {
+  print(plot_list2[[i]])
+}
+for(i in 1:length(plot_list3)) {
+  print(plot_list3[[i]])
+}
 dev.off()
+
 
 
