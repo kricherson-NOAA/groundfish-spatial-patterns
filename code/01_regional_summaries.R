@@ -28,7 +28,7 @@ wc_sectors <- c("LE/CS Trawl",
                 "At-sea hake CP",
                 "At-sea hake MS",
                 "CS Fixed Gear",
-                "Shoreside/midwater Hake")[1:7]
+                "Shoreside/midwater Hake")[c(1,3,6,7)]
 
 if(data == "Alaska") {
   d <- readRDS("Data/subset_pfxcommercial_cleaned_allyears_renamed.rds")
@@ -77,8 +77,23 @@ port_fisher = dplyr::group_by(d, year, drvid) %>%
                    port_fisher = paste(year, drvid)) %>%
   dplyr::filter(n == 1)
 
+
 #I get an error about "$ operator is invalid for atomic vectors" when filtering to data to port_fisher %in% port_fisher$port_fisher, this is a workaround -KR
 single_port_fishers <- port_fisher$port_fisher
+
+#do the same for WC fish ticket data
+if (data == "WC")
+{
+  ft$port_fisher = paste(ft$year, ft$drvid)
+  port_fisher_ft = dplyr::group_by(ft, year, drvid) %>%
+    dplyr::summarize(n = length(unique(pacfin_port_code)),
+                     port_fisher_ft = paste(year, drvid)) %>%
+    dplyr::filter(n == 1)
+  
+  single_port_fishers_ft <- port_fisher_ft$port_fisher_ft
+  
+}
+
 
 # do coarse summaries by area and year
 area_cog <-
@@ -259,37 +274,37 @@ for(i in 1:length(unique(sub$v))) {
     ggtitle(paste0("Distribution of landings: ",unique(sub$v)[i]))
 }
 
-#For WC, let's also plot fish ticket landings since partial observer coverage makes seasonal patterns harder to discern
+#For WC, let's also plot fish ticket landings since partial observer coverage may make seasonal patterns harder to discern
 if (data == "WC")
 {
   ft$id = seq(1,nrow(ft))
   ft_sample = sample(ft$id, size=nrow(ft), replace=T, prob = ft$mt)
 
   #Note: not filtering by port for now
-  p10 <- ggplot(ft[ft_sample,], aes(yday(landing_date), year, group=year)) +
+  p10_ft <- ggplot(ft[ft_sample,], aes(yday(landing_date), year, group=year)) +
     geom_density_ridges() +
     xlab("Calendar day") +
     ylab("Year") +
     ggtitle("Distribution of landings (fish tickets)")
 
 
-  p11 <- ggplot(ft[ft_sample,], aes(yday(landing_date), year, group=year)) +
+  p11_ft <- ggplot(ft[ft_sample,], aes(yday(landing_date), year, group=year)) +
     geom_density_ridges() +
     xlab("Calendar day") +
     ylab("Year") +
     ggtitle("Distribution of landings (fish tickets)")+
     facet_grid(area~sector2, scales = "free")
 
-  plot_list <- list()
+  plot_list_ft <- list()
   sub = ft[ft_sample,] %>%
     dplyr::mutate(j_landing_date = yday(landing_date))
 
   for(i in 1:length(unique(sub$area))) {
-    plot_list[[i]] <- ggplot(dplyr::filter(sub, area == unique(sub$area)[i]), aes(j_landing_date, year, group=year)) +
+    plot_list_ft[[i]] <- ggplot(dplyr::filter(sub, area == unique(sub$area)[i]), aes(j_landing_date, year, group=year)) +
       geom_density_ridges() +
       xlab("Calendar day") +
       ylab("Year") +
-      ggtitle(paste0("Distribution of landings: ",unique(sub$area)[i]))
+      ggtitle(paste0("Distribution of landings (fish tickets): ",unique(sub$area)[i]))
   }
 }
 
@@ -360,8 +375,65 @@ p15 <- ggplot(season_by_ports, aes(year,eff_days, group=r_port, col=r_port)) +
   xlab("Year") + theme_bw()+
   {if(data == "WC") theme(legend.title = element_text( size=2), legend.text=element_text(size=2))}
 
+#For WC data, repeat effective days fished analysis on fish ticket data (and at-sea hake data)
+if (data == "WC")
+{
+  #Still needs a little data prep
+  ft$j_set_day <- lubridate::yday(ft$landing_date)
+  ft$ret_mt <- ft$mt
+  ft$r_port <- ft$pacfin_port_code
+  
+  season_eff_ft <- dplyr::filter(ft, port_fisher %in%  single_port_fishers_ft) %>%
+    dplyr::group_by(year, drvid, j_set_day) %>%
+    dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
+                     port = r_port[1]) %>% # calculate sum by person-day-year
+    dplyr::group_by(year, drvid) %>%  # sum across days
+    dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
+  
+  # calculate weighted avg across fishers by retained catch --
+  season_all_ports_ft <- dplyr::group_by(season_eff_ft, year, drvid) %>%
+    dplyr::summarize(sector2 = sector2[1],
+                     ret_yr = ret_yr[1],
+                     sum_p2 = sum(norm_ret^2)) %>%
+    dplyr::group_by(year, sector2) %>%
+    dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr))
+  
+  p14_ft <- ggplot(season_all_ports_ft, aes(year,eff_days)) +
+    geom_line() +
+    facet_wrap(~sector2, scale="free_y") +
+    ylab("Effective days fished (fish tickets)") +
+    xlab("Year") + theme_bw()
+  
+  #At sea hake doesn't have FTs, but it does have full observer coverage, so make a plot here
+  p14_hake <- ggplot(season_all_ports %>% filter(sector2 == "At-sea hake"), aes(year,eff_days)) +
+    geom_line() +
+    facet_wrap(~sector2, scale="free_y") +
+    ylab("Effective days fished") +
+    xlab("Year") + theme_bw()
+  
+  # do same, calculating seasonal trends by port for top ports
+  season_by_ports_ft <-
+    # dplyr::filter(season_eff, port %in% port_list) %>%
+    dplyr::group_by(season_eff_ft, year, drvid) %>%
+    dplyr::summarize(sector2 = sector2[1],
+                     ret_yr = ret_yr[1],
+                     sum_p2 = sum(norm_ret^2),
+                     r_port = port[1])
+  
+  season_by_ports_ft = dplyr::group_by(season_by_ports_ft, year, sector2, r_port) %>%
+    dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr)) #%>%
+    #dplyr::filter(r_port %in% port_list)
+  
+  p15_ft <- ggplot(season_by_ports_ft, aes(year,eff_days, group=r_port, col=r_port)) +
+    geom_line() +
+    facet_wrap(~sector2, scale="free_y") +
+    ylab("Effective days fished (fish tickets)") +
+    xlab("Year") + theme_bw()+
+    {if(data == "WC") theme(legend.title = element_text( size=2), legend.text=element_text(size=2))}
+}
+
 ### Create spatial anomaly maps
-#These plot the anomaly in each spatial pixel
+#These plot the anomaly in each spatial pixel within each year
 
 #Create raster grid. Resolution is currently arbitrary
 ras <- raster(xmn=min(d$set_long), xmx=max(d$set_long), ymn=min(d$set_lat), ymx=max(d$set_lat), res=0.25, crs="+proj=longlat")# +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
@@ -416,7 +488,7 @@ for(y in 1:(length(unique(d$year))))
 #Fill in 0s for cells where there was no observed effort in a given year/sector, then calculate anomalies
 d_grid <- d_grid %>% 
   complete(year, var, nesting(sector2, set_lat, set_long), fill = list(value = 0)) %>% 
-  group_by(set_long, set_lat, sector2, var) %>% 
+  group_by(sector2, var, year) %>% 
   mutate(mean = mean(value),
          sd  = sd(value)) %>% 
   ungroup() %>% 
@@ -462,10 +534,24 @@ p11
 for(i in 1:length(plot_list)) {
   print(plot_list[[i]])
 }
+#If WC, add in fish ticket seasonal patterns in addition to observed landings
+if (data == "WC")
+{
+  p11_ft
+}
 p12
 p13
-p14
-p15
+if (data == "Alaska")
+{
+  p14
+  p15
+}
+if(data == "WC")
+{
+  gridExtra::grid.arrange(p14_ft,p14_hake)
+  p15_ft
+}
+
 for(i in 1:length(plot_list2)) {
   print(plot_list2[[i]])
 }
