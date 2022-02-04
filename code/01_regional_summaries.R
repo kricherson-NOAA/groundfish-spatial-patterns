@@ -555,6 +555,7 @@ if(data == "WC")
 for(i in 1:length(plot_list2)) {
   print(plot_list2[[i]])
 }
+
 for(i in 1:length(plot_list3)) {
   print(plot_list3[[i]])
 }
