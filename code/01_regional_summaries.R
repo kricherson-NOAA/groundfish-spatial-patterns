@@ -14,7 +14,7 @@ library(tidyr)
 # these plots things like the COG or intertia (variance) for the larger ecoregions
 data <- c("Alaska", "WC")[2]
 scale = c("region","port")[1]
-n_top_ports <- 10
+n_top_ports <- 50
 
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
@@ -37,6 +37,7 @@ if(data == "Alaska") {
     dplyr::rename(r_port_long = lon, r_port_lat = lat, r_port = port) %>%
     dplyr::select(r_port, r_port_long, r_port_lat)
   d = dplyr::left_join(d, port_locs)
+
 } else {
 
   d <- readRDS("Data/gf_haul.rds") %>%
@@ -52,7 +53,7 @@ if(data == "Alaska") {
 
  ft <- readRDS("Data/ft.rds") %>%
    dplyr::filter(sector2 %in% wc_sectors)
- 
+
 }
 
 
@@ -89,9 +90,9 @@ if (data == "WC")
     dplyr::summarize(n = length(unique(pacfin_port_code)),
                      port_fisher_ft = paste(year, drvid)) %>%
     dplyr::filter(n == 1)
-  
+
   single_port_fishers_ft <- port_fisher_ft$port_fisher_ft
-  
+
 }
 
 
@@ -136,13 +137,15 @@ area_permit_cog <-
                    lat_sd = sqrt(wtd.var(set_lat, ret_mt)),
                    long_sd = sqrt(wtd.var(set_long, ret_mt)),
                    total_sd = sqrt(lat_sd^2 + long_sd^2),
-                   individuals="Ind. ignored")
+                   individuals="Ind. ignored",
+                   subarea = subarea[1])
 
 # do same -- but vessel/individual averages
 area_permit_cog_ind <-
   dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
   dplyr::group_by(v, sector2, drvid, year) %>%
   dplyr::summarize(n = n(),
+                   subarea = subarea[1],
                    sum_mt = sum(ret_mt),
                    lat_mean = wtd.mean(set_lat, ret_mt),
                    lon_mean = wtd.mean(set_long, ret_mt),
@@ -157,26 +160,36 @@ area_permit_cog_ind <-
                    lat_sd = mean(lat_sd),
                    long_sd = mean(long_sd),
                    total_sd = mean(total_sd),
-                   individuals="Ind. averaged")
+                   individuals="Ind. averaged",
+                   subarea = subarea[1])
 
 #Calculating distance from return port. For WC, this is the haul distance from port
 #First, taken over all observations
 haul_dist <-
   dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
   dplyr::group_by(v, sector2, year, haul_id) %>%
-  dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat)) %>%
+  dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
+                   subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T))
+  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),subarea = subarea[1])
 
 #Second, taken over individuals/vessels, then across port/sector
 haul_dist_ind <-
   dplyr::filter(d, r_port %in% port_list) %>%
   dplyr::group_by(v, sector2, year, drvid, haul_id) %>%
-  dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat)) %>%
+  dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
+                   subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year, drvid) %>%
-  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T)) %>%
+  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarise(mean_ind_haul_dist = mean(mean_haul_dist, na.rm = T))
+  dplyr::summarise(mean_ind_haul_dist = mean(mean_haul_dist, na.rm = T),subarea = subarea[1])
+
+# saving the above dataframes as objects to run models on -- EW
+saveRDS(area_permit_cog, paste0("data/",data,"_",scale,"_cog",".rds"))
+saveRDS(area_permit_cog_ind, paste0("data/",data,"_",scale,"_cog-ind",".rds"))
+saveRDS(haul_dist, paste0("data/",data,"_",scale,"_hauldist",".rds"))
+saveRDS(haul_dist_ind, paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
+
 
 p1 <- ggplot(area_cog, aes(lon_mean, lat_mean,col=year)) +
   geom_point(alpha=0.6) +
@@ -382,14 +395,14 @@ if (data == "WC")
   ft$j_set_day <- lubridate::yday(ft$landing_date)
   ft$ret_mt <- ft$mt
   ft$r_port <- ft$pacfin_port_code
-  
+
   season_eff_ft <- dplyr::filter(ft, port_fisher %in%  single_port_fishers_ft) %>%
     dplyr::group_by(year, drvid, j_set_day) %>%
     dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
                      port = r_port[1]) %>% # calculate sum by person-day-year
     dplyr::group_by(year, drvid) %>%  # sum across days
     dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
-  
+
   # calculate weighted avg across fishers by retained catch --
   season_all_ports_ft <- dplyr::group_by(season_eff_ft, year, drvid) %>%
     dplyr::summarize(sector2 = sector2[1],
@@ -397,20 +410,20 @@ if (data == "WC")
                      sum_p2 = sum(norm_ret^2)) %>%
     dplyr::group_by(year, sector2) %>%
     dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr))
-  
+
   p14_ft <- ggplot(season_all_ports_ft, aes(year,eff_days)) +
     geom_line() +
     facet_wrap(~sector2, scale="free_y") +
     ylab("Effective days fished (fish tickets)") +
     xlab("Year") + theme_bw()
-  
+
   #At sea hake doesn't have FTs, but it does have full observer coverage, so make a plot here
   p14_hake <- ggplot(season_all_ports %>% filter(sector2 == "At-sea hake"), aes(year,eff_days)) +
     geom_line() +
     facet_wrap(~sector2, scale="free_y") +
     ylab("Effective days fished") +
     xlab("Year") + theme_bw()
-  
+
   # do same, calculating seasonal trends by port for top ports
   season_by_ports_ft <-
     # dplyr::filter(season_eff, port %in% port_list) %>%
@@ -419,11 +432,11 @@ if (data == "WC")
                      ret_yr = ret_yr[1],
                      sum_p2 = sum(norm_ret^2),
                      r_port = port[1])
-  
+
   season_by_ports_ft = dplyr::group_by(season_by_ports_ft, year, sector2, r_port) %>%
     dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr)) #%>%
     #dplyr::filter(r_port %in% port_list)
-  
+
   p15_ft <- ggplot(season_by_ports_ft, aes(year,eff_days, group=r_port, col=r_port)) +
     geom_line() +
     facet_wrap(~sector2, scale="free_y") +
@@ -441,62 +454,62 @@ ras <- raster(xmn=min(d$set_long), xmx=max(d$set_long), ymn=min(d$set_lat), ymx=
 #Create empty data frame to store results
 d_grid <- data.frame(year= numeric(),
                      sector2 = character(),
-                     set_lat = numeric(), 
+                     set_lat = numeric(),
                      set_long = numeric(),
                      var = character(),
-                     stringsAsFactors=FALSE) 
+                     stringsAsFactors=FALSE)
 
 #Loop over years, sectors to grid the data using the raster above
 for(y in 1:(length(unique(d$year))))
 {
-  
+
   for(s in 1:length(unique(d$sector2)))
   {
     dat <- filter(d, year == unique(d$year)[y] & sector2 == unique(d$sector2)[s])
-    
+
     if(nrow(dat > 0))
     {
       vessels_ras<-rasterize(cbind(dat$set_long, dat$set_lat), ras, dat$drvid, fun=n_distinct)
       retained_ras<-rasterize(cbind(dat$set_long, dat$set_lat), ras, dat$ret_mt, fun=sum)
       #hauls_ras<-rasterize(cbind(dat$set_long, dat$set_lat), ras, dat$haul_id, fun=n_distinct)
-      
+
       vessels_df <- rasterToPoints(vessels_ras) %>%
-        as.data.frame() %>% 
+        as.data.frame() %>%
         mutate(var = "n_vessels")
-      
+
       retained_df <- rasterToPoints(retained_ras) %>%
-        as.data.frame() %>% 
+        as.data.frame() %>%
         mutate(var = "ret_mt")
-      
+
       # hauls_df <- rasterToPoints(hauls_ras) %>%
-      #   as.data.frame() %>% 
+      #   as.data.frame() %>%
       #   mutate(var = "n_hauls")
-      
-      df <- bind_rows(vessels_df, retained_df) %>% 
+
+      df <- bind_rows(vessels_df, retained_df) %>%
         mutate(year = dat$year[1],
-               sector2 = dat$sector2[1]) %>% 
+               sector2 = dat$sector2[1]) %>%
         rename(set_long = x, set_lat = y, value = layer)
-      
+
       d_grid <- bind_rows(d_grid, df)
     }
-    
-    
+
+
   }
-  
+
 }
 
 #Fill in 0s for cells where there was no observed effort in a given year/sector, then calculate anomalies
-d_grid <- d_grid %>% 
-  complete(year, var, nesting(sector2, set_lat, set_long), fill = list(value = 0)) %>% 
-  group_by(sector2, var, year) %>% 
+d_grid <- d_grid %>%
+  complete(year, var, nesting(sector2, set_lat, set_long), fill = list(value = 0)) %>%
+  group_by(sector2, var, year) %>%
   mutate(mean = mean(value),
-         sd  = sd(value)) %>% 
-  ungroup() %>% 
+         sd  = sd(value)) %>%
+  ungroup() %>%
   mutate(anom = (value - mean)/sd)
 
 
-plot_list2 <- list() 
-plot_list3 <- list() 
+plot_list2 <- list()
+plot_list3 <- list()
 
 #Make anomaly plots
 for (s in 1:length(unique(d$sector2)))
@@ -509,7 +522,7 @@ for (s in 1:length(unique(d$sector2)))
   scale_fill_viridis()+
   theme_bw()+
   ggtitle(paste("Retained catch weight,", unique(d$sector2)[s]))
-  
+
   plot_list3[[s]] <- ggplot() +
   geom_tile(data = filter(d_grid, sector2 == unique(d$sector2)[s] & var == "n_vessels"), aes(x = set_long, y = set_lat, fill = anom))+
   borders("state")+
@@ -518,7 +531,7 @@ for (s in 1:length(unique(d$sector2)))
   scale_fill_viridis()+
   theme_bw()+
   ggtitle(paste("Number of vessels,", unique(d$sector2)[s]))
-  
+
 }
 
 
