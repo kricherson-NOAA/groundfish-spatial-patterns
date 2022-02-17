@@ -16,39 +16,51 @@ haul_dist_ind = readRDS(paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
 # Example questions:
 # - are trends in inertia explained better by region (subarea), sector,
 # or is there no common pattern?
-data = area_permit_cog
-data$port = as.factor(data$v)
-data$sector2 = as.factor(data$sector2)
-data$subarea = as.factor(data$subarea)
+dat = area_permit_cog
+dat$port = as.factor(dat$v)
+dat$sector2 = as.factor(dat$sector2)
+dat$subarea = as.factor(dat$subarea)
+dat$sector_subarea = as.factor(paste(dat$sector2, dat$subarea))
 # only use ports with 10 or more years of data
-data = group_by(data, port) %>%
+dat = group_by(dat, port) %>%
   dplyr::mutate(nyear = length(unique(year))) %>%
   dplyr::filter(nyear>=10) %>%
   dplyr::select(-nyear)
 
-# single common pattern, port random effect
-fit0 = gam(log(total_sd) ~  sector2 * subarea + s(year,k=8) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
-
-# sector - specific year and subarea smooths
-fit1 = gam(log(total_sd) ~ sector2 * subarea + s(year,k=8,by=sector2) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
-fit2 = gam(log(total_sd) ~ sector2 * subarea + s(year,k=8,by=subarea) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
-
-# shared year smooth and separate factor smooths
-fit3 = gam(log(total_sd) ~ sector2 * subarea + s(year, k=8, m=2) + s(year, sector2, k=8, bs="fs", m=2) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
-fit4 = gam(log(total_sd) ~ sector2 * subarea + s(year, k=8, m=2) + s(year, subarea, k=8, bs="fs", m=2) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
-
-# no shared year smooth but separate factor smooths
-fit5 = gam(log(total_sd) ~ sector2 * subarea + s(year, sector2, k=8, bs="fs", m=2) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
-fit6 = gam(log(total_sd) ~ sector2 * subarea + s(year, subarea, k=8, bs="fs", m=2) + s(port,bs="re"), data = dplyr::filter(data, total_sd>0))
+dat$weights = (1/dat$total_cv) # weights are 1/CV
+dat$weights = dat$weights/mean(dat$weights,na.rm=T)# normalize
 
 # port level smooths -- may be getting too fine here
-fit7 = gam(log(total_sd) ~ sector2 * subarea + s(year, sector2, k=8, bs="fs", m=2) + s(year, port, k=8, bs="fs", m=2), data = dplyr::filter(data, total_sd>0))
-fit8 = gam(log(total_sd) ~ sector2 * subarea + s(year, subarea, k=8, bs="fs", m=2) + s(year, port, k=8, bs="fs", m=2), data = dplyr::filter(data, total_sd>0))
+# global year effect, with port level smooths
+fit1 = gam(log(total_sd) ~ sector2 * subarea + s(year, k=8) + s(year, port, k=8, bs="fs", m=2), weights = weights,data = dplyr::filter(dat, total_sd>0))
+# sector specific year effects, with port level smooths
+fit2 = gam(log(total_sd) ~ sector2 * subarea + s(year, sector2, k=8, bs="fs", m=2) + s(year, port, k=8, bs="fs", m=2), weights = weights,data = dplyr::filter(dat, total_sd>0))
+# area specific year effects, with port level smooths
+fit3 = gam(log(total_sd) ~ sector2 * subarea + s(year, subarea, k=8, bs="fs", m=2) + s(year, port, k=8, bs="fs", m=2), weights = weights,data = dplyr::filter(dat, total_sd>0))
+# area and sector specific year effects (non-interacting), with port level smooths
+fit4 = gam(log(total_sd) ~ sector2 * subarea + s(year, sector2, k=8, bs="fs", m=2)+ s(year, subarea, k=8, bs="fs", m=2) + s(year, port, k=8, bs="fs", m=2), weights = weights,data = dplyr::filter(dat, total_sd>0))
+# area and sector specific year effects (interacting), with port level smooths
+fit5 = gam(log(total_sd) ~ sector2 * subarea + s(year, sector_subarea, k=8, bs="fs", m=2)+ s(year, port, k=8, bs="fs", m=2), weights = weights,data = dplyr::filter(dat, total_sd>0))
 
-data$sector_area = as.factor(paste(data$sector2, data$subarea))
-m0 = glmmTMB(log(total_sd) ~ sector2 + subarea + (1|year) + (1|port), data = dplyr::filter(data, total_sd>0))
-m1 = glmmTMB(log(total_sd) ~ (1|sector_area) + (1|year) + (1|port), data = dplyr::filter(data, total_sd>0))
-m2 = glmmTMB(log(total_sd) ~ sector2 + subarea + as.factor(year) + (1|port), data = dplyr::filter(data, total_sd>0))
-m3 = glmmTMB(log(total_sd) ~ sector_area + (1|year) + (1|port), data = dplyr::filter(data, total_sd>0))
-m4 = glmmTMB(log(total_sd) ~ (1|sector_area) + subarea + (1|sector2:subarea) + (1|port), data = dplyr::filter(data, total_sd>0))
+newdata = expand.grid(year = unique(dat$year),
+                     sector2 = unique(dat$sector2),
+                     subarea = unique(dat$subarea))
+newdata = dplyr::filter(newdata,!is.na(sector2), !is.na(subarea))
+newdata$sector_subarea = as.factor(paste(newdata$sector2, newdata$subarea))
+newdata = dplyr::filter(newdata,sector_subarea %in% unique(data$sector_subarea))
+newdata$port = "new_port"
+model_pred <- predict(fit5, newdata=newdata, se.fit=TRUE) # predict to new port -- will be same as mean
+
+newdata = cbind(newdata, model_pred)
+
+pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
+
+ggplot(newdata, aes(year, exp(fit), col=sector2, fill=sector2)) +
+  geom_line() +
+  geom_ribbon(aes(ymin=exp(fit-2*se.fit), ymax=exp(fit+2*se.fit)),alpha=0.5) +
+  facet_wrap(subarea~sector2,scale="free_y") +
+  theme_bw() + xlab("") + ylab("Inertia")
+
+dev.off()
+
 

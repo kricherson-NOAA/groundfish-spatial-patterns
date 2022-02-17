@@ -12,8 +12,8 @@ library(viridis)
 library(tidyr)
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
-data <- c("Alaska", "WC")[2]
-scale = c("region","port")[1]
+data <- c("Alaska", "WC")[1]
+scale = c("region","port")[2]
 n_top_ports <- 50
 
 #Split west coast into north/south of 40 10?
@@ -106,7 +106,9 @@ area_cog <-
                    lat_sd = sqrt(wtd.var(set_lat, ret_mt)),
                    long_sd = sqrt(wtd.var(set_long, ret_mt)),
                    total_sd = sqrt(lat_sd^2 + long_sd^2),
-                   individuals="Ind. ignored")
+                   individuals="Ind. ignored",
+                   total_cv = total_sd / mean(lat_sd^2 + long_sd^2))
+
 # do same -- but vessel/individual averages
 area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
   dplyr::group_by(v, drvid, year) %>%
@@ -125,6 +127,7 @@ area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_
                    lat_sd = mean(lat_sd),
                    long_sd = mean(long_sd),
                    total_sd = mean(total_sd),
+                   total_cv = sd(total_sd) / total_sd,
                    individuals="Ind. averaged")
 
 # instead of just stratifying by area, do area + permit (sector2)
@@ -138,7 +141,8 @@ area_permit_cog <-
                    long_sd = sqrt(wtd.var(set_long, ret_mt)),
                    total_sd = sqrt(lat_sd^2 + long_sd^2),
                    individuals="Ind. ignored",
-                   subarea = subarea[1])
+                   subarea = subarea[1],
+                   total_cv = total_sd/mean(lat_sd^2 + long_sd^2))
 
 # do same -- but vessel/individual averages
 area_permit_cog_ind <-
@@ -159,6 +163,7 @@ area_permit_cog_ind <-
                    lon_mean = mean(lon_mean),
                    lat_sd = mean(lat_sd),
                    long_sd = mean(long_sd),
+                   total_cv = sd(total_sd)/mean(total_sd),
                    total_sd = mean(total_sd),
                    individuals="Ind. averaged",
                    subarea = subarea[1])
@@ -171,7 +176,9 @@ haul_dist <-
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
                    subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),subarea = subarea[1])
+  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),
+                   total_cv = sd(port_dist, na.rm = T)/mean_haul_dist,
+                   subarea = subarea[1])
 
 #Second, taken over individuals/vessels, then across port/sector
 haul_dist_ind <-
@@ -180,9 +187,12 @@ haul_dist_ind <-
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
                    subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year, drvid) %>%
-  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),subarea = subarea[1]) %>%
+  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),
+                   subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarise(mean_ind_haul_dist = mean(mean_haul_dist, na.rm = T),subarea = subarea[1])
+  dplyr::summarise(mean_ind_haul_dist = mean(mean_haul_dist, na.rm = T),
+                   total_cv = sd(mean_haul_dist, na.rm = T)/mean_ind_haul_dist,
+                   subarea = subarea[1])
 
 # saving the above dataframes as objects to run models on -- EW
 saveRDS(area_permit_cog, paste0("data/",data,"_",scale,"_cog",".rds"))
