@@ -95,11 +95,13 @@ if (data == "WC")
 
 }
 
+# filter all records to only use single port fishers?
+d = dplyr::filter(d, port_fisher %in% single_port_fishers,
+                  r_port %in% port_list)
 
 # do coarse summaries by area and year
 area_cog <-
-  dplyr::filter(d, r_port %in% port_list) %>%
-  dplyr::group_by(v, year) %>%
+  dplyr::group_by(d, v, year) %>%
   dplyr::summarize(sum_mt = sum(ret_mt,na.rm=T),
                    lat_mean = wtd.mean(set_lat, ret_mt),
                    lon_mean = wtd.mean(set_long, ret_mt),
@@ -110,8 +112,7 @@ area_cog <-
                    total_cv = total_sd / mean(lat_sd^2 + long_sd^2))
 
 # do same -- but vessel/individual averages
-area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
-  dplyr::group_by(v, drvid, year) %>%
+area_cog_ind <- dplyr::group_by(d, v, drvid, year) %>%
   dplyr::summarize(n = n(),
                    sum_mt = sum(ret_mt),
                    lat_mean = wtd.mean(set_lat, ret_mt),
@@ -119,7 +120,7 @@ area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_
                    lat_sd = sqrt(wtd.var(set_lat, ret_mt)),
                    long_sd = sqrt(wtd.var(set_long, ret_mt)),
                    total_sd = sqrt(lat_sd^2 + long_sd^2)) %>%
-  dplyr::filter(n >= 10, !is.na(lat_mean+lon_mean+lat_sd+long_sd)) %>%
+  dplyr::filter(!is.na(lat_mean+lon_mean+lat_sd+long_sd)) %>%
   dplyr::group_by(v, year) %>%
   dplyr::summarize(sum_mt = mean(sum_mt),
                      lat_mean = mean(lat_mean),
@@ -131,10 +132,9 @@ area_cog_ind <- dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_
                    individuals="Ind. averaged")
 
 # instead of just stratifying by area, do area + permit (sector2)
-area_permit_cog <-
-  dplyr::filter(d, r_port %in% port_list) %>%
-  dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarize(sum_mt = sum(ret_mt),
+area_permit_cog <- dplyr::group_by(d, v, sector2, year) %>%
+  dplyr::summarize(n = n(),
+                   sum_mt = sum(ret_mt),
                    lat_mean = wtd.mean(set_lat, ret_mt),
                    lon_mean = wtd.mean(set_long, ret_mt),
                    lat_sd = sqrt(wtd.var(set_lat, ret_mt)),
@@ -145,9 +145,7 @@ area_permit_cog <-
                    total_cv = total_sd/mean(lat_sd^2 + long_sd^2))
 
 # do same -- but vessel/individual averages
-area_permit_cog_ind <-
-  dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
-  dplyr::group_by(v, sector2, drvid, year) %>%
+area_permit_cog_ind <- dplyr::group_by(d, v, sector2, drvid, year) %>%
   dplyr::summarize(n = n(),
                    subarea = subarea[1],
                    sum_mt = sum(ret_mt),
@@ -156,9 +154,11 @@ area_permit_cog_ind <-
                    lat_sd = sqrt(wtd.var(set_lat, ret_mt)),
                    long_sd = sqrt(wtd.var(set_long, ret_mt)),
                    total_sd = sqrt(lat_sd^2 + long_sd^2)) %>%
-  dplyr::filter(n >= 10, !is.na(lat_mean+lon_mean+lat_sd+long_sd)) %>%
-  dplyr::group_by(v, year, sector2) %>%
-  dplyr::summarize(sum_mt = mean(sum_mt),
+  dplyr::filter(!is.na(lat_mean+lon_mean+lat_sd+long_sd)) %>%
+  dplyr::group_by(area_permit_cog_ind,v, year, sector2) %>%
+  dplyr::summarize(n_fishtickets = sum(n),
+                   n = n(),
+                   sum_mt = mean(sum_mt),
                    lat_mean = mean(lat_mean),
                    lon_mean = mean(lon_mean),
                    lat_sd = mean(lat_sd),
@@ -171,35 +171,59 @@ area_permit_cog_ind <-
 #Calculating distance from return port. For WC, this is the haul distance from port
 #First, taken over all observations
 haul_dist <-
-  dplyr::filter(d, r_port %in% port_list, port_fisher %in% single_port_fishers) %>%
-  dplyr::group_by(v, sector2, year, haul_id) %>%
+  dplyr::group_by(d, v, sector2, year, haul_id) %>%
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
                    subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),
+  dplyr::summarise(n = n(),
+                   mean_haul_dist = mean(port_dist, na.rm = T),
                    total_cv = sd(port_dist, na.rm = T)/mean_haul_dist,
                    subarea = subarea[1])
 
 #Second, taken over individuals/vessels, then across port/sector
-haul_dist_ind <-
-  dplyr::filter(d, r_port %in% port_list) %>%
-  dplyr::group_by(v, sector2, year, drvid, haul_id) %>%
+haul_dist_ind <- dplyr::group_by(d,v, sector2, year, drvid, haul_id) %>%
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
                    subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year, drvid) %>%
   dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),
                    subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
-  dplyr::summarise(mean_ind_haul_dist = mean(mean_haul_dist, na.rm = T),
-                   total_cv = sd(mean_haul_dist, na.rm = T)/mean_ind_haul_dist,
+  dplyr::summarise(n = n(),
+                   mean_haul_dist = mean(mean_haul_dist, na.rm = T),
+                   total_cv = sd(mean_haul_dist, na.rm = T)/mean_haul_dist,
                    subarea = subarea[1])
+
+# also add calculations for the effective number of days fished. This
+# follows from the portfolio work we've done previously (Anderson et al. PNAS,
+# Ward et al. J Appl Ecol) -- the formula is Effective[x] = sum(p_i^2),
+# where p_i is the proportion of landings for any individual fisher
+# this is calculated separately by person and year, and then averaged across people
+season_eff <- dplyr::group_by(d, year, v, sector2,j_set_day) %>%
+  dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
+                   v = r_port[1],
+                   subarea = subarea[1]) %>%# calculate sum by person-day-year
+  dplyr::group_by(year, v, sector2) %>%  # sum across days
+  dplyr::mutate(ret_yr = sum(ret), p = ret/ret_yr) %>%# normalize
+  dplyr::group_by(year, v, sector2,subarea) %>%
+  dplyr::summarize(n = n(), effective_days = 1/(sum(p^2)))
+
+season_eff_ind <- dplyr::group_by(d, year, drvid, j_set_day) %>%
+  dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
+                   v = r_port[1],
+                   subarea = subarea[1]) %>%# calculate sum by person-day-year
+  dplyr::group_by(year, drvid) %>%  # sum across days
+  dplyr::mutate(ret_yr = sum(ret), p = ret/ret_yr,
+                effective_days = 1/(sum(p^2))) %>% # normalize
+  dplyr::group_by(year, v, sector2,subarea) %>%
+  dplyr::summarize(n = n(), effective_days = mean(effective_days))
 
 # saving the above dataframes as objects to run models on -- EW
 saveRDS(area_permit_cog, paste0("data/",data,"_",scale,"_cog",".rds"))
 saveRDS(area_permit_cog_ind, paste0("data/",data,"_",scale,"_cog-ind",".rds"))
 saveRDS(haul_dist, paste0("data/",data,"_",scale,"_hauldist",".rds"))
 saveRDS(haul_dist_ind, paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
-
+saveRDS(season_eff, paste0("data/",data,"_",scale,"_days",".rds"))
+saveRDS(season_eff_ind, paste0("data/",data,"_",scale,"_days-ind",".rds"))
 
 p1 <- ggplot(area_cog, aes(lon_mean, lat_mean,col=year)) +
   geom_point(alpha=0.6) +
@@ -352,25 +376,6 @@ p13 <- ggplot(dplyr::filter(haul_dist_ind, v != "at sea"), aes(year, mean_ind_ha
   ggtitle("Individual averages") +
   facet_grid(sector2~v, scale="free_y")
 
-# also add calculations for the effective number of days fished. This
-# follows from the portfolio work we've done previously (Anderson et al. PNAS,
-# Ward et al. J Appl Ecol) -- the formula is Effective[x] = sum(p_i^2),
-# where p_i is the proportion of landings for any individual fisher
-# this is calculated separately by person and year, and then averaged across people
-season_eff <- dplyr::filter(d, port_fisher %in% port_fisher) %>%
-  dplyr::group_by(year, drvid, j_set_day) %>%
-  dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
-                   port = r_port[1]) %>% # calculate sum by person-day-year
-  dplyr::group_by(year, drvid) %>%  # sum across days
-  dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
-
-# calculate weighted avg across fishers by retained catch --
-season_all_ports <- dplyr::group_by(season_eff, year, drvid) %>%
-  dplyr::summarize(sector2 = sector2[1],
-                   ret_yr = ret_yr[1],
-                   sum_p2 = sum(norm_ret^2)) %>%
-  dplyr::group_by(year, sector2) %>%
-  dplyr::summarize(eff_days = wtd.mean(1/sum_p2, ret_yr))
 
 p14 <- ggplot(season_all_ports, aes(year,eff_days)) +
   geom_line() +
