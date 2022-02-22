@@ -147,7 +147,7 @@ newdf = rbind(newdf,newdf_ind)
 p1 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
   geom_line() +
   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-  facet_wrap(subarea~sector2,scale="free_y") +
+  facet_wrap(subarea~sector2,scale="free_y", ncol = length(unique(newdf$sector2))) +
   theme_bw() + xlab("") + ylab("ln Inertia")
 
 newdf = left_join(df, dplyr::select(pred_list[[3]], year, sector2, subarea, fit, se)) %>%
@@ -159,7 +159,7 @@ newdf = rbind(newdf,newdf_ind)
 p2 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
   geom_line() +
   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-  facet_wrap(subarea~sector2,scale="free_y") +
+  facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
   theme_bw() + xlab("") + ylab("ln Distance")
 
 newdf = left_join(df, dplyr::select(pred_list[[5]], year, sector2, subarea, fit, se)) %>%
@@ -171,7 +171,7 @@ newdf = rbind(newdf,newdf_ind)
 p3 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
   geom_line() +
   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-  facet_wrap(subarea~sector2,scale="free_y") +
+  facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
   theme_bw() + xlab("") + ylab("ln Days")
 
 pdf(paste0("output/",scale, "_gam-combined_",data,"_", split_wc,".pdf"))
