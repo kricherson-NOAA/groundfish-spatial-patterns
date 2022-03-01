@@ -90,10 +90,27 @@ if (data == "WC")
   port_fisher_ft = dplyr::group_by(ft, year, drvid) %>%
     dplyr::summarize(n = length(unique(pacfin_port_code)),
                      port_fisher_ft = paste(year, drvid)) %>%
-    dplyr::filter(n == 1) 
+    dplyr::filter(n == 1)
 
   single_port_fishers_ft <- port_fisher_ft$port_fisher_ft
 
+} else {
+  # drop ports associated with floating processors
+  d = dplyr::filter(d, v %in% c("UNK","FLP","IFP","FLD")==FALSE)
+  d$keep = 0
+  # keep combos with 15+ years of data
+  d$keep[which(d$sector2=="longline" & d$v %in% c("AKU","ALI",
+                                                        "COR","CRG","DUT",
+                                                        "HNH","HOM","JNU",
+                                                        "KCO","KOD","KTN",
+                                                        "PBG","PEL","SEW","SIT","VAL",
+                                                        "WRN","YAK"))] = 1
+  # rockfish in kodiak
+  d$keep[which(d$sector2 == "rockfish" & d$v == "KOD")] = 1
+  # groundfish, pelagic trawl in: KCO, KOD, SPT
+  d$keep[which(d$sector2 == "pelagic trawl" & d$v %in% c("KCO","KOD","SPT"))] = 1
+  d$keep[which(d$sector2 == "misc. groundfish" & d$v %in% c("KCO","KOD","SPT"))] = 1
+  d = dplyr::filter(d,keep==1)
 }
 
 # filter all records to only use single port fishers?
@@ -175,19 +192,21 @@ area_permit_cog_ind <- dplyr::group_by(d, v, sector2, drvid, year) %>%
 haul_dist <-
   dplyr::group_by(d, v, sector2, year, haul_id) %>%
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
-                   subarea = subarea[1]) %>%
+                   subarea = subarea[1],
+                   mt = sum(ret_mt)) %>%
   dplyr::group_by(v, sector2, year) %>%
   dplyr::summarise(n = n(),
-                   mean_haul_dist = mean(port_dist, na.rm = T),
+                   mean_haul_dist = wtd.mean(port_dist, mt, na.rm = T),
                    total_cv = sd(port_dist, na.rm = T)/mean_haul_dist,
                    subarea = subarea[1])
 
 #Second, taken over individuals/vessels, then across port/sector
 haul_dist_ind <- dplyr::group_by(d,v, sector2, year, drvid, haul_id) %>%
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
-                   subarea = subarea[1]) %>%
+                   subarea = subarea[1],
+                   mt = sum(ret_mt)) %>%
   dplyr::group_by(v, sector2, year, drvid) %>%
-  dplyr::summarise(mean_haul_dist = mean(port_dist, na.rm = T),
+  dplyr::summarise(mean_haul_dist = wtd.mean(port_dist, mt, na.rm = T),
                    subarea = subarea[1]) %>%
   dplyr::group_by(v, sector2, year) %>%
   dplyr::summarise(n = n(),
