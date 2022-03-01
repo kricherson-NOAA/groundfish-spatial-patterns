@@ -78,7 +78,10 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   # global year effect, with port level smooths (port = v)
   fit = list()
   K = 10
-  fit[[1]] = gam(response ~ sector2 * subarea + s(year,k=K) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
+  # New null model, response varies by subarea
+  fit[[1]] = gam(response ~ s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+
+  #fit[[1]] = gam(response ~ sector2 * subarea + s(year,k=K) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
   # sector specific year effects, with port level smooths
   fit[[2]] = gam(response ~ subarea + s(year, sector2, k=K, bs="fs", m=2) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
   # area specific year effects, with port level smooths
