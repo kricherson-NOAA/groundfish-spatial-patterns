@@ -12,7 +12,7 @@ library(viridis)
 library(tidyr)
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 n_top_ports <- 50
 
@@ -44,7 +44,8 @@ if(data == "Alaska") {
     dplyr::filter(sector2 %in% wc_sectors) %>%
     dplyr::mutate(sector2 = ifelse(grepl("At-sea hake", sector2),
                                    "At-sea hake",
-                                   sector2)) #Combine at-sea CP and MS for now
+                                   sector2)) %>%  #Combine at-sea CP and MS for now
+    mutate(subarea = area) #Not sure if this is the best way to match up with AK data - placeholder for now
 
   if(split_wc == "one_area")
   {
@@ -89,7 +90,7 @@ if (data == "WC")
   port_fisher_ft = dplyr::group_by(ft, year, drvid) %>%
     dplyr::summarize(n = length(unique(pacfin_port_code)),
                      port_fisher_ft = paste(year, drvid)) %>%
-    dplyr::filter(n == 1)
+    dplyr::filter(n == 1) 
 
   single_port_fishers_ft <- port_fisher_ft$port_fisher_ft
 
@@ -155,7 +156,8 @@ area_permit_cog_ind <- dplyr::group_by(d, v, sector2, drvid, year) %>%
                    long_sd = sqrt(wtd.var(set_long, ret_mt)),
                    total_sd = sqrt(lat_sd^2 + long_sd^2)) %>%
   dplyr::filter(!is.na(lat_mean+lon_mean+lat_sd+long_sd)) %>%
-  dplyr::group_by(area_permit_cog_ind,v, year, sector2) %>%
+  #dplyr::group_by(area_permit_cog_ind,v, year, sector2) %>%
+  dplyr::group_by(v, year, sector2) %>% #KR edit: commented out line above and added this line b/c otherwise I get an error
   dplyr::summarize(n_fishtickets = sum(n),
                    n = n(),
                    sum_mt = mean(sum_mt),

@@ -2,7 +2,7 @@ library(mgcv)
 library(dplyr)
 library(gratia)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 # these dataframes get created by 01_regional_summaries.r
@@ -66,7 +66,13 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   dat$sector_subarea = as.factor(paste(dat$sector2, dat$subarea))
   not_rare = dplyr::group_by(dat, sector_subarea) %>%
     dplyr::summarise(n = n()) %>% dplyr::filter(n > quantile(n,0.25))
-  dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea)
+  #Need to adjust this for WC so that we don't exclude at-sea hake, which only has one "port"
+  if(data == "WC")
+  {
+    dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea | sector2 == "At-sea hake")
+  }else{
+    dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea)
+  }
   dat$sector_subarea = as.factor(as.character(dat$sector_subarea))
   # port level smooths -- may be getting too fine here
   # global year effect, with port level smooths (port = v)
