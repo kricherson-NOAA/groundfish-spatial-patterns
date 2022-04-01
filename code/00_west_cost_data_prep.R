@@ -169,7 +169,9 @@ ft <- FTOrig_Proc %>%
   mutate(drvid = as.character(drvid)) %>% 
   ungroup() %>% 
   mutate(area = ifelse (latitude_port >= 40 + 1/6, "north", "south")) %>% 
-  left_join(r_ports2, by = "pacfin_port_code")
+  left_join(r_ports2, by = "pacfin_port_code") %>% 
+  mutate(j_landing_day = yday(landing_date)) 
+  
 
 saveRDS(ft, "~/observer/Input/Richerson/groundfish_spatial/ft.rds")
 
