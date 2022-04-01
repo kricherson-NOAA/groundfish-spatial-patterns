@@ -89,7 +89,7 @@ r_ports <- read_csv("~/observer/Input/Richerson/iopac_ob_conversion_table.csv") 
 
 gf_haul <- gf_haul0 %>% 
   left_join(r_ports, by = "r_port") %>% 
-  mutate(area = ifelse (r_port_lat >= 40 + 1/16, "north", "south"),
+  mutate(area = ifelse (r_port_lat >= 40 + 1/6, "north", "south"),
          area = ifelse(r_port == "AT SEA - NO RETURN PORT", "at sea", area))
 
 nrow(gf_haul) == nrow(gf_haul0)
@@ -168,7 +168,7 @@ ft <- FTOrig_Proc %>%
   mutate(data_source = "FT") %>% 
   mutate(drvid = as.character(drvid)) %>% 
   ungroup() %>% 
-  mutate(area = ifelse (latitude_port >= 40 + 1/16, "north", "south")) %>% 
+  mutate(area = ifelse (latitude_port >= 40 + 1/6, "north", "south")) %>% 
   left_join(r_ports2, by = "pacfin_port_code")
 
 saveRDS(ft, "~/observer/Input/Richerson/groundfish_spatial/ft.rds")
