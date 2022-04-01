@@ -46,14 +46,16 @@ if(data == "Alaska") {
                                    "At-sea hake",
                                    sector2)) %>%  #Combine at-sea CP and MS for now
     mutate(subarea = area) #Not sure if this is the best way to match up with AK data - placeholder for now
+  
+  ft <- readRDS("Data/ft.rds") %>%
+    dplyr::filter(sector2 %in% wc_sectors) %>% 
+    mutate(subarea = area) #Not sure if this is the best way to match up with AK data - placeholder for now
 
   if(split_wc == "one_area")
   {
     d$area <- "WC"
+    ft$area <- "WC"
   }
-
- ft <- readRDS("Data/ft.rds") %>%
-   dplyr::filter(sector2 %in% wc_sectors)
 
 }
 
@@ -67,9 +69,12 @@ if(scale=="port") {
   # remove number codes
   port_list = port_list[which(is.na(as.numeric(port_list$r_port))),]
   port_list = port_list$r_port[1:n_top_ports]
+  
+  ft$v <- ft$r_port
 } else {
   d$v <- d$area
   port_list = unique(d$r_port)
+  ft$v <- v$area
 }
 
 # only include individuals who fish in a single port in a year
@@ -237,6 +242,40 @@ season_eff_ind <- dplyr::group_by(d, year, drvid, j_set_day) %>%
                 effective_days = 1/(sum(p^2))) %>% # normalize
   dplyr::group_by(year, v, sector2,subarea) %>%
   dplyr::summarize(n = n(), effective_days = mean(effective_days))
+
+#For the shoreside west coast sectors, I think we should use fish ticket data to calculate effective days fished (or days landed). I'm not confident that partial observer coverage might not lead to biases in results (selection is *supposed* to be spatially representative, but I'm not sure about *temporally* representative)
+if(data == "WC")
+{
+  # filter all records to only use single port fishers?
+  ft = dplyr::filter(ft, port_fisher %in% single_port_fishers,
+                    r_port %in% port_list)
+  
+  season_eff_ft <- dplyr::group_by(ft, year, v, sector2, j_landing_day) %>%
+    dplyr::summarise(ret = sum(mt), sector2=sector2[1],
+                     v = r_port[1],
+                     subarea = subarea[1]) %>%# calculate sum by person-day-year
+    dplyr::group_by(year, v, sector2) %>%  # sum across days
+    dplyr::mutate(ret_yr = sum(ret), p = ret/ret_yr) %>%# normalize
+    dplyr::group_by(year, v, sector2,subarea) %>%
+    dplyr::summarize(n = n(), effective_days = 1/(sum(p^2)))
+  
+  season_eff_ind_ft <- dplyr::group_by(ft, year, drvid, j_landing_day) %>%
+    dplyr::summarise(ret = sum(mt), sector2=sector2[1],
+                     v = r_port[1],
+                     subarea = subarea[1]) %>%# calculate sum by person-day-year
+    dplyr::group_by(year, drvid) %>%  # sum across days
+    dplyr::mutate(ret_yr = sum(ret), p = ret/ret_yr,
+                  effective_days = 1/(sum(p^2))) %>% # normalize
+    dplyr::group_by(year, v, sector2,subarea) %>%
+    dplyr::summarize(n = n(), effective_days = mean(effective_days))
+  
+  #Add on at-sea effective days fished, then save this for further analysis
+  season_eff <- filter(season_eff, sector2 == "At-sea hake") %>% 
+    bind_rows(season_eff_ft)
+  
+  season_eff_ind <- filter(season_eff_ind, sector2 == "At-sea hake") %>% 
+    bind_rows(season_eff_ind_ft)
+}
 
 # saving the above dataframes as objects to run models on -- EW
 saveRDS(area_permit_cog, paste0("data/",data,"_",scale,"_cog",".rds"))
