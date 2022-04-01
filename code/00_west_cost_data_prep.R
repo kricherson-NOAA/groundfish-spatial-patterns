@@ -141,6 +141,7 @@ write_csv(fields, "~/observer/Input/Richerson/groundfish_spatial/fields_in_kr_da
 #Add in return port lat/long
 r_ports2 <- read_csv("~/observer/Input/Richerson/iopac_ob_conversion_table.csv") %>% 
   clean_names() %>% 
+  mutate(r_port = ifelse(is.na(r_port), pacfin_port_name, r_port)) %>% 
   select(r_port, pacfin_port_code) %>% 
   filter(!is.na(r_port))
 
