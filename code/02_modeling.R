@@ -111,6 +111,8 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
                      fit = mean(fit,na.rm=T),
                      se = sqrt((1/(n*n)) * sum(se.fit^2))
                      )
+  #keep track of which model had lowest AIC
+  best_model <- which.min(lapply(fit,AIC))
 
   # look at individual smooths
   #sm = get_smooth(fit[[which.min(lapply(fit,AIC))]], "year")
@@ -128,7 +130,7 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
     geom_line() +
     geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
     facet_wrap(subarea~sector2,scale="free_y") +
-    theme_bw() + xlab("") + ylab(ylabel) + ggtitle(run)
+    theme_bw() + xlab("") + ylab(ylabel) + ggtitle(paste0(run, " (model ", best_model, ")"))
 
   pred_list[[counter]] = newdata
 }
