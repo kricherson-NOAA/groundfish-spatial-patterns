@@ -8,8 +8,12 @@ library(janitor)
 library(tidyverse)
 library(lubridate)
 
-source("~/observer/Input/load_data_2021-09-30.R")
-
+#load data (don't forget to watch for data updates)
+newest_data <- tail(list.files("~/observer/Input/")[grepl("load_data_", list.files("~/observer/Input/"))], n = 1)
+print(newest_data)
+load_data_fun <- "load_data_2022-03-24.R"
+source(paste0("~/observer/Input/", load_data_fun))
+if(newest_data != load_data_fun){print("!check load data function version!")}
 load_data(c("WCGOP_proc_full", "EM_proc", "ASHOP_proc", "FT_proc"))
 
 
