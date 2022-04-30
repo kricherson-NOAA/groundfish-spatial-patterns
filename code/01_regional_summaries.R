@@ -19,6 +19,9 @@ n_top_ports <- 50
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
+#Include all vessels, or just those that fish out of one port?
+include_all_vessels <- TRUE
+
 #Which WC sectors to include?
 wc_sectors <- c("LE/CS Trawl",
                 "OA Fixed Gear",
@@ -71,11 +74,34 @@ if(scale=="port") {
   port_list = port_list$r_port[1:n_top_ports]
   
   ft$v <- ft$r_port
+  
+  #If we DON'T want to restrict analysis to only vessels landing in one port, let's define v as the port that vessels land in most often in a given year/sector, according to fish tickets (their "home port")
+  
+  if(include_all_vessels)
+  {
+    
+    home_ports <- ft %>% 
+      #summarize one "landing" (ie same port, vessel, and day)
+      group_by(year, sector2, drvid, landing_date, r_port) %>% 
+      summarise(total_mt = sum(mt)) %>% 
+      group_by(drvid, sector2, year, r_port) %>% 
+      summarise(n = n()) %>% #could also use highest weight
+      group_by(drvid, sector2, year) %>% 
+      slice(which.max(n)) %>% 
+      rename(home_port = r_port) %>% 
+      ungroup()
+    
+    #something needs to be fixed here
+    test<- d %>% 
+      left_join(home_ports, by =c("drvid", "sector2", "year"))
+  }
+  
 } else {
   d$v <- d$area
   port_list = unique(d$r_port)
   ft$v <- v$area
 }
+
 
 # only include individuals who fish in a single port in a year
 d$port_fisher = paste(d$year, d$drvid)
@@ -83,6 +109,8 @@ port_fisher = dplyr::group_by(d, year, drvid) %>%
   dplyr::summarize(n = length(unique(r_port)),
                    port_fisher = paste(year, drvid)) %>%
   dplyr::filter(n == 1)
+
+
 
 
 #I get an error about "$ operator is invalid for atomic vectors" when filtering to data to port_fisher %in% port_fisher$port_fisher, this is a workaround -KR
@@ -119,8 +147,16 @@ if (data == "WC")
 }
 
 # filter all records to only use single port fishers?
-d = dplyr::filter(d, port_fisher %in% single_port_fishers,
-                  r_port %in% port_list)
+if(include_all_vessels)
+{
+  d = dplyr::filter(d, r_port %in% port_list)
+  
+}else{
+  
+  d = dplyr::filter(d, port_fisher %in% single_port_fishers,
+                    r_port %in% port_list)
+}
+
 
 # do coarse summaries by area and year
 area_cog <-
@@ -206,7 +242,7 @@ haul_dist <-
                    subarea = subarea[1])
 
 #Second, taken over individuals/vessels, then across port/sector
-haul_dist_ind <- dplyr::group_by(d,v, sector2, year, drvid, haul_id) %>%
+haul_dist_ind <- dplyr::group_by(d, v, sector2, year, drvid, haul_id) %>%
   dplyr::summarise(port_dist = sinkr::earthDist(set_long, set_lat, r_port_long, r_port_lat),
                    subarea = subarea[1],
                    mt = sum(ret_mt)) %>%
@@ -247,8 +283,17 @@ season_eff_ind <- dplyr::group_by(d, year, drvid, j_set_day) %>%
 if(data == "WC")
 {
   # filter all records to only use single port fishers?
-  ft = dplyr::filter(ft, port_fisher %in% single_port_fishers,
-                    r_port %in% port_list)
+  if(include_all_vessels)
+  {
+    
+    ft = dplyr::filter(ft, r_port %in% port_list)
+    
+  }else{
+    
+    ft = dplyr::filter(ft, port_fisher %in% single_port_fishers,
+                       r_port %in% port_list)
+  }
+
   
   season_eff_ft <- dplyr::group_by(ft, year, v, sector2, j_landing_day) %>%
     dplyr::summarise(ret = sum(mt), sector2=sector2[1],
@@ -471,12 +516,22 @@ if (data == "WC")
   ft$ret_mt <- ft$mt
   ft$r_port <- ft$pacfin_port_code
 
-  season_eff_ft <- dplyr::filter(ft, port_fisher %in%  single_port_fishers_ft) %>%
-    dplyr::group_by(year, drvid, j_set_day) %>%
-    dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
-                     port = r_port[1]) %>% # calculate sum by person-day-year
-    dplyr::group_by(year, drvid) %>%  # sum across days
-    dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
+  if(include_all_vessels)
+  {
+    season_eff_ft <- ft %>%
+      dplyr::group_by(year, drvid, j_set_day) %>%
+      dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
+                       port = r_port[1]) %>% # calculate sum by person-day-year
+      dplyr::group_by(year, drvid) %>%  # sum across days
+      dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
+  }else{
+    season_eff_ft <- dplyr::filter(ft, port_fisher %in%  single_port_fishers_ft) %>%
+      dplyr::group_by(year, drvid, j_set_day) %>%
+      dplyr::summarise(ret = sum(ret_mt), sector2=sector2[1],
+                       port = r_port[1]) %>% # calculate sum by person-day-year
+      dplyr::group_by(year, drvid) %>%  # sum across days
+      dplyr::mutate(ret_yr = sum(ret), norm_ret = ret/ret_yr) # normalize
+  }
 
   # calculate weighted avg across fishers by retained catch --
   season_all_ports_ft <- dplyr::group_by(season_eff_ft, year, drvid) %>%
