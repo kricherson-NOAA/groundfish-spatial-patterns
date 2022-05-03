@@ -153,6 +153,7 @@ ft <- FTOrig_Proc %>%
   clean_names() %>% 
   filter(sector %in% c("Limited Entry Trawl", 
                        "Catch Shares",
+                       "Catch Shares EM",
                        "Midwater Hake",
                        "Midwater Rockfish",
                        "Shoreside Hake",
@@ -160,9 +161,9 @@ ft <- FTOrig_Proc %>%
                        "Limited Entry Sablefish",
                        "LE Fixed Gear DTL",
                        "Nearshore")) %>% 
-  mutate(sector2 = ifelse(sector %in% c("Limited Entry Trawl", "Catch Shares") &
+  mutate(sector2 = ifelse(sector %in% c("Limited Entry Trawl", "Catch Shares", "Catch Shares EM") &
                             gear %in% c("Bottom Trawl", "Midwater Trawl"), "LE/CS Trawl", sector)) %>% 
-  mutate(sector2 = ifelse(sector == "Catch Shares" &
+  mutate(sector2 = ifelse(sector %in% c("Catch Shares", "Catch Shares EM") &
                             !gear %in% c("Bottom Trawl", "Midwater Trawl"), "CS Fixed Gear", sector2)) %>% 
   mutate(sector2 = ifelse(grepl("Hake", sector), "Shoreside/midwater Hake", sector2)) %>% 
   group_by(year, agency_code, sector, sector2, drvid, gear, landing_date, pacfin_port_code, latitude_port, ftid) %>% 
