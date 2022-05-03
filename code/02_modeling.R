@@ -21,6 +21,7 @@ eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
 # or is there no common pattern?
 plot_list = list()
 pred_list = list()
+
 for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind","eff_days","eff_days-ind")) {
 
   if(run=="area_permit_cog") dat = area_permit_cog
@@ -78,8 +79,9 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   # binary indicator for rationalization
   dat$catch_share = 0 # 0 before, 1 after
   if(data == "Alaska") {
-    dat$catch_share[which(dat$sector2 == "rockfish" & dat$year > 2005)] = 1
-    dat$catch_share[which(dat$sector2 == "longline" & dat$year > 1995)] = 1
+    # longline misc. groundfish    pelagic trawl         rockfish
+    dat$catch_share[which(dat$sector2 == "rockfish" & dat$year >= 2005)] = 1
+    dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 1
   }
 
   # global year effect, with port level smooths (port = v)
@@ -94,6 +96,9 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   fit[[5]] = gam(response ~ catch_share + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
   fit[[6]] = gam(response ~ catch_share + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
 
+  # save models for later summarizing
+  saveRDS(fit, paste0("output/gams_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+
   # Add random intercepts to ports
   # fit[[7]] = gam(response ~ s(year,bs="ps") + s(port,bs="re"), weights = weights,data = dat)
   # fit[[8]] = gam(response ~ sector2 + subarea + s(year,bs="ps") + s(port,bs="re"), weights = weights,data = dat)
@@ -105,7 +110,15 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   # create new data to predict on -- representing mean for each area-sector
   newdata = expand.grid(year = unique(dat$year),
                         sector2 = unique(dat$sector2),
-                        port = unique(dat$port))
+                        port = unique(dat$port),
+                        catch_share = 0)
+  if(data == "Alaska") {
+    # longline misc. groundfish    pelagic trawl         rockfish
+    newdata$catch_share[which(newdata$sector2 == "rockfish" & newdata$year >= 2005)] = 1
+    newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 1
+  }
+  # add block
+
   newdata = dplyr::filter(newdata,!is.na(sector2), !is.na(port))
   port_area = dplyr::group_by(dat, port) %>% dplyr::summarize(subarea = subarea[1])
   newdata = dplyr::left_join(newdata, port_area)
