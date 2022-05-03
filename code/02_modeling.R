@@ -2,7 +2,7 @@ library(mgcv)
 library(dplyr)
 library(gratia)
 
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
 
 # these dataframes get created by 01_regional_summaries.r
@@ -74,22 +74,33 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
     dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea)
   }
   dat$sector_subarea = as.factor(as.character(dat$sector_subarea))
-  # port level smooths -- may be getting too fine here
+
+  # binary indicator for rationalization
+  dat$catch_share = 0 # 0 before, 1 after
+  if(data == "Alaska") {
+    dat$catch_share[which(dat$sector2 == "rockfish" & dat$year > 2005)] = 1
+    dat$catch_share[which(dat$sector2 == "longline" & dat$year > 1995)] = 1
+  }
+
   # global year effect, with port level smooths (port = v)
   fit = list()
   K = 10
-  # New null model, response varies by subarea
-  fit[[1]] = gam(response ~ s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
 
-  #fit[[1]] = gam(response ~ sector2 * subarea + s(year,k=K) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
-  # sector specific year effects, with port level smooths
-  fit[[2]] = gam(response ~ subarea + s(year, sector2, k=K, bs="fs", m=2) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
-  # area specific year effects, with port level smooths
-  fit[[3]] = gam(response ~ sector2 + s(year, subarea, k=K, bs="fs", m=2) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
-  # area and sector specific year effects (non-interacting), with port level smooths
-  fit[[4]] = gam(response ~ s(year, sector2, k=K, bs="fs", m=2)+ s(year, subarea, k=K, bs="fs", m=2) + s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
-  # area and sector specific year effects (interacting), with port level smooths
-  fit[[5]] = gam(response ~ s(year, sector_subarea, k=K, bs="fs", m=2)+ s(year, port, k=K, bs="fs", m=2), weights = weights,data = dat)
+  # New null model, response varies by subarea
+  fit[[1]] = gam(response ~ catch_share + s(year,bs="ps"), weights = weights,data = dat)
+  fit[[2]] = gam(response ~ catch_share + sector2 + subarea + s(year,bs="ps"), weights = weights,data = dat)
+  fit[[3]] = gam(response ~ catch_share + sector2 + s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[4]] = gam(response ~ catch_share + subarea + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[5]] = gam(response ~ catch_share + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[6]] = gam(response ~ catch_share + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+
+  # Add random intercepts to ports
+  # fit[[7]] = gam(response ~ s(year,bs="ps") + s(port,bs="re"), weights = weights,data = dat)
+  # fit[[8]] = gam(response ~ sector2 + subarea + s(year,bs="ps") + s(port,bs="re"), weights = weights,data = dat)
+  # fit[[9]] = gam(response ~ sector2 + s(year, subarea, k=K, bs="fs", m=2) + s(port,bs="re"), weights = weights,data = dat)
+  # fit[[10]] = gam(response ~ subarea + s(year, sector2, k=K, bs="fs", m=2) + s(port,bs="re"), weights = weights,data = dat)
+  # fit[[11]] = gam(response ~ s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2) + s(port,bs="re"), weights = weights,data = dat)
+  # fit[[12]] = gam(response ~ s(year, sector_subarea, k=K, bs="fs", m=2) + s(port,bs="re"), weights = weights,data = dat)
 
   # create new data to predict on -- representing mean for each area-sector
   newdata = expand.grid(year = unique(dat$year),
