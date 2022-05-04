@@ -1,9 +1,13 @@
 library(mgcv)
 library(dplyr)
 library(gratia)
+library(ggplot2)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
+
+#Split west coast into north/south of 40 10?
+split_wc <- c("north_south", "one_area")[1]
 
 # these dataframes get created by 01_regional_summaries.r
 area_permit_cog = readRDS(paste0("data/",data,"_",scale,"_cog",".rds"))
@@ -66,7 +70,7 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   dat$subarea = as.factor(dat$subarea)
   dat$sector_subarea = as.factor(paste(dat$sector2, dat$subarea))
   not_rare = dplyr::group_by(dat, sector_subarea) %>%
-    dplyr::summarise(n = n()) %>% dplyr::filter(n > quantile(n,0.25))
+    dplyr::summarise(n = n()) %>% dplyr::filter(n >= quantile(n,0.25))
   #Need to adjust this for WC so that we don't exclude at-sea hake, which only has one "port"
   if(data == "WC")
   {
@@ -82,6 +86,10 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
     # longline misc. groundfish    pelagic trawl         rockfish
     dat$catch_share[which(dat$sector2 == "rockfish" & dat$year >= 2005)] = 1
     dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 1
+  }else{
+    dat$catch_share[which(dat$sector2 == "LE/CS Trawl" & dat$year >= 2011)] = 1
+    dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 1
+    
   }
 
   # global year effect, with port level smooths (port = v)
@@ -116,6 +124,10 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
     # longline misc. groundfish    pelagic trawl         rockfish
     newdata$catch_share[which(newdata$sector2 == "rockfish" & newdata$year >= 2005)] = 1
     newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 1
+  }else{
+    newdata$catch_share[which(newdata$sector2 == "LE/CS Trawl" & newdata$year >= 2011)] = 1
+    newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 1
+    
   }
   # add block
 

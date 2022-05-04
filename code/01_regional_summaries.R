@@ -73,6 +73,9 @@ if(scale=="port") {
   port_list = port_list[which(is.na(as.numeric(port_list$r_port))),]
   port_list = port_list$r_port[1:n_top_ports]
   
+  #On the west coat, there's only 34 ports total, so remove NAs that get generated 
+  port_list <- port_list[!is.na(port_list)]
+  
   ft$v <- ft$r_port
   
   #If we DON'T want to restrict analysis to only vessels landing in one port, let's define v as the port that vessels land in most often in a given year/sector, according to fish tickets (their "home port")
@@ -85,15 +88,26 @@ if(scale=="port") {
       group_by(year, sector2, drvid, landing_date, r_port) %>% 
       summarise(total_mt = sum(mt)) %>% 
       group_by(drvid, sector2, year, r_port) %>% 
-      summarise(n = n()) %>% #could also use highest weight
+      summarise(n = n()) %>% #could also use highest weight or highest revenue....
       group_by(drvid, sector2, year) %>% 
       slice(which.max(n)) %>% 
       rename(home_port = r_port) %>% 
       ungroup()
     
-    #something needs to be fixed here
-    test<- d %>% 
-      left_join(home_ports, by =c("drvid", "sector2", "year"))
+    #Join home port derived from to observer data, remove the very small number of observer data rows that did not have a match in the fish ticket data (<1%)
+    d <- d %>% 
+      left_join(home_ports, by =c("drvid", "sector2", "year")) %>% 
+      mutate(home_port = ifelse(sector2 == "At-sea hake", r_port, home_port)) %>% 
+      filter(!is.na(home_port)) %>% 
+      dplyr::select(-v, -n) %>% 
+      rename(v = home_port)
+    
+    #Also change the ft data so that v = home port
+    ft <- ft %>% 
+      left_join(home_ports, by =c("drvid", "sector2", "year")) %>% 
+      dplyr::select(-v, -n) %>% 
+      rename(v = home_port)
+      
   }
   
 } else {
@@ -103,14 +117,12 @@ if(scale=="port") {
 }
 
 
-# only include individuals who fish in a single port in a year
+# Find single port fishers if only include individuals who fish in a single port in a year
 d$port_fisher = paste(d$year, d$drvid)
 port_fisher = dplyr::group_by(d, year, drvid) %>%
   dplyr::summarize(n = length(unique(r_port)),
                    port_fisher = paste(year, drvid)) %>%
   dplyr::filter(n == 1)
-
-
 
 
 #I get an error about "$ operator is invalid for atomic vectors" when filtering to data to port_fisher %in% port_fisher$port_fisher, this is a workaround -KR
