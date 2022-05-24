@@ -3,7 +3,7 @@ library(dplyr)
 library(gratia)
 library(ggplot2)
 
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -89,7 +89,7 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   }else{
     dat$catch_share[which(dat$sector2 == "LE/CS Trawl" & dat$year >= 2011)] = 1
     dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 1
-    
+
   }
 
   # global year effect, with port level smooths (port = v)
@@ -127,7 +127,7 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   }else{
     newdata$catch_share[which(newdata$sector2 == "LE/CS Trawl" & newdata$year >= 2011)] = 1
     newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 1
-    
+
   }
   # add block
 
@@ -137,8 +137,29 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   newdata$sector_subarea = as.factor(paste(newdata$sector2, newdata$subarea))
   newdata = dplyr::filter(newdata,sector_subarea %in% unique(dat$sector_subarea))
 
+  # This block is just making predictions for each model and binding all together
+  model_pred = predict(fit[[1]], newdata = newdata, se.fit=TRUE)
+  newdf = cbind(newdata, model_pred)
+  newdf$model = 1
+  newdf$run = run
+  newdf$scale = scale
+  newdf$region = data
+  all_pred = newdf
+  for(i in 2:6) {
+    model_pred = predict(fit[[i]], newdata = newdata, se.fit=TRUE)
+    newdf = cbind(newdata, model_pred)
+    newdf$model = i
+    newdf$run = run
+    newdf$scale = scale
+    newdf$region = data
+    all_pred = rbind(all_pred, newdf)
+  }
+  saveRDS(all_pred, paste0("output/predictions_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+
+  # make initial plots using model with lowest AIC
   model_pred <- predict(fit[[which.min(lapply(fit,AIC))]], newdata=newdata, se.fit=TRUE) # predict to new port -- will be same as mean
   newdata = cbind(newdata, model_pred)
+
   newdata = dplyr::group_by(newdata, sector_subarea, year) %>%
     dplyr::summarize(
       sector2 = sector2[1],
@@ -170,6 +191,28 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
 
   pred_list[[counter]] = newdata
 }
+
+## Make summary table of AIC stats for paper
+model_results = NULL
+for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind","eff_days","eff_days-ind")) {
+  fit = readRDS(paste0("output/gams_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+  # extract AIC etc
+  df = data.frame("Model"=1:6, "Run" = run, "AIC" = unlist(lapply(fit,AIC)))
+  df$Scale = ifelse(length(grep("ind",run))==0,"Aggregate","Individual")
+  df$AIC = df$AIC - min(df$AIC)
+  # bind all results together
+  if(is.null(model_results)) {
+    model_results = df
+  } else {
+    model_results = rbind(model_results, df)
+  }
+}
+model_results$Metric = "Season"
+model_results$Metric[which(model_results$Run %in% c("area_permit_cog","area_permit_cog-ind"))] = "Inertia"
+model_results$Metric[which(model_results$Run %in% c("haul_dist","haul_dist-ind"))] = "Distance"
+model_results$Area = data
+saveRDS(model_results, paste0("output/aic_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+
 
 pdf(paste0("output/",scale, "_gams_",data,"_", split_wc,".pdf"))
 plot_list[1]
