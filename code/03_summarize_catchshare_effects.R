@@ -18,9 +18,9 @@ for(run in 1:length(run_names)) {
 
   # save models for later summarizing
   fits = readRDS(paste0("output/gams_",scale, "_",run_names[run],"_",data,"_", split_wc,".rds"))
-  df$Est[run] = summary(fits[[5]])$p.coeff[2]
-  df$SE[run] = summary(fits[[5]])$se[2]
-  df$P_value[run] = summary(fits[[5]])$p.pv[2]
+  df$Est[run] = summary(fits[[best_model_index[run]]])$p.coeff[2]
+  df$SE[run] = summary(fits[[best_model_index[run]]])$se[2]
+  df$P_value[run] = summary(fits[[best_model_index[run]]])$p.pv[2]
 }
 
 df$Run = c("Inertia (aggregate)", "Inertia (individual)", "Distance (aggregate)", "Distance (individual)", "Days (aggregate)", "Days (individual)")
