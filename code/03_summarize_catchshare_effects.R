@@ -3,13 +3,17 @@ library(dplyr)
 library(gratia)
 library(ggplot2)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
-best_model_index = c(5,5,5,5,6,6) #
+if(data == "Alaska"){
+  best_model_index = c(5,5,5,5,6,6) #
+}else{
+  best_model_index = c(6,6,4,4,2,6)
+}
 run_names = c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind","eff_days","eff_days-ind")
 
 df = data.frame(Model = 1:6, run = run_names, Est = NA, SE = NA, P_value = NA)

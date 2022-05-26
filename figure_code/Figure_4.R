@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -14,10 +14,18 @@ effort = readRDS(paste0("output/predictions_",scale, "_","eff_days","_",data,"_"
 effort_ind = readRDS(paste0("output/predictions_",scale, "_","eff_days-ind","_",data,"_", split_wc,".rds"))
 
 # Only use data from best model
-effort = dplyr::filter(effort, model==6) %>%
-  dplyr::mutate("Scale"="Aggregate")
-effort_ind = dplyr::filter(effort_ind, model==6) %>%
-  dplyr::mutate("Scale"="Individual")
+if(data == "Alaska"){
+  effort = dplyr::filter(effort, model==6) %>%
+    dplyr::mutate("Scale"="Aggregate")
+  effort_ind = dplyr::filter(effort_ind, model==6) %>%
+    dplyr::mutate("Scale"="Individual")
+}else{
+  effort = dplyr::filter(effort, model==2) %>%
+    dplyr::mutate("Scale"="Aggregate")
+  effort_ind = dplyr::filter(effort_ind, model==6) %>%
+    dplyr::mutate("Scale"="Individual")
+}
+
 df = rbind(effort, effort_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
 

@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -13,11 +13,21 @@ split_wc <- c("north_south", "one_area")[1]
 inertia = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog","_",data,"_", split_wc,".rds"))
 inertia_ind = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog-ind","_",data,"_", split_wc,".rds"))
 
-# Only use data from best model
-inertia = dplyr::filter(inertia, model==5) %>%
-  dplyr::mutate("Scale"="Aggregate")
-inertia_ind = dplyr::filter(inertia_ind, model==5) %>%
-  dplyr::mutate("Scale"="Individual")
+if(data == "Alaska")
+{
+  # Only use data from best model
+  inertia = dplyr::filter(inertia, model==5) %>%
+    dplyr::mutate("Scale"="Aggregate")
+  inertia_ind = dplyr::filter(inertia_ind, model==5) %>%
+    dplyr::mutate("Scale"="Individual")
+}else{
+  # Only use data from best model (6 on the west coast)
+  inertia = dplyr::filter(inertia, model==6) %>%
+    dplyr::mutate("Scale"="Aggregate")
+  inertia_ind = dplyr::filter(inertia_ind, model==6) %>%
+    dplyr::mutate("Scale"="Individual")
+}
+
 df = rbind(inertia, inertia_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
 

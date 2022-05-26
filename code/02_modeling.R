@@ -3,7 +3,7 @@ library(dplyr)
 library(gratia)
 library(ggplot2)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -74,7 +74,8 @@ for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind"
   #Need to adjust this for WC so that we don't exclude at-sea hake, which only has one "port"
   if(data == "WC")
   {
-    dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea | sector2 == "At-sea hake")
+    #dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea | sector2 == "At-sea hake")
+    NULL #Filtering only to common combinations in the WC data removes LE sablefish south for the distance from port calculations, and I don't think we want that
   }else{
     dat = dplyr::filter(dat, sector_subarea %in% not_rare$sector_subarea)
   }

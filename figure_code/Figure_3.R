@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -14,10 +14,17 @@ dist = readRDS(paste0("output/predictions_",scale, "_","haul_dist","_",data,"_",
 dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",data,"_", split_wc,".rds"))
 
 # Only use data from best model
-dist = dplyr::filter(dist, model==5) %>%
-  dplyr::mutate("Scale"="Aggregate")
-dist_ind = dplyr::filter(dist_ind, model==5) %>%
-  dplyr::mutate("Scale"="Individual")
+if(data == "Alaska"){
+  dist = dplyr::filter(dist, model==5) %>%
+    dplyr::mutate("Scale"="Aggregate")
+  dist_ind = dplyr::filter(dist_ind, model==5) %>%
+    dplyr::mutate("Scale"="Individual")
+}else{
+  dist = dplyr::filter(dist, model==4) %>%
+    dplyr::mutate("Scale"="Aggregate")
+  dist_ind = dplyr::filter(dist_ind, model==4) %>%
+    dplyr::mutate("Scale"="Individual")
+}
 df = rbind(dist, dist_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
 
