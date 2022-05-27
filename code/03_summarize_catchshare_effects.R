@@ -32,3 +32,9 @@ df$Run = c("Inertia (aggregate)", "Inertia (individual)", "Distance (aggregate)"
 df = dplyr::select(df, -run)
 
 saveRDS(df,paste0("output/table_catchshares_",data,".rds"))
+
+df_table <- df %>% 
+  select(Model, Run, Est, SE, P_value) %>% 
+  mutate_if(is.numeric, round, 4)
+
+write.csv(df_table,paste0("output/table_catchshares_",data,".csv"), row.names = F)
