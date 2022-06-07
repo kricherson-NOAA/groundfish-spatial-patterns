@@ -20,8 +20,7 @@ haul_dist_ind = readRDS(paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
 eff_days = readRDS(paste0("data/",data,"_",scale,"_days",".rds"))
 eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
 
-#What would it look like it we plot 
-#get map from ggmap bc Kevin wants pretty maps
+#What would it look like it we plot the region-level COG over time?
 #sbbox <- make_bbox(lon = area_permit_cog$lon_mean, lat = area_permit_cog$lat_mean, f = .1)
 sbbox <- make_bbox(lon = c(-126,-120), lat = c(34.5,48), f = .1)
 sq_map <- get_map(location = sbbox, maptype = "sattelite", source = "google")
