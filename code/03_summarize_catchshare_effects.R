@@ -3,7 +3,7 @@ library(dplyr)
 library(gratia)
 library(ggplot2)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
