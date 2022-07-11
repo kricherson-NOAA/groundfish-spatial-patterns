@@ -26,30 +26,18 @@ eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
 plot_list = list()
 pred_list = list()
 
-for(run in c("inertia","inertia-ind",
-             "haul_dist","haul_dist-ind",
-             "eff_days","eff_days-ind",
-             "lat","lat-ind",
-             "lon","lon-ind")) {
+for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind","eff_days","eff_days-ind")) {
 
-  if(run %in% c("inertia","lat","lon")) dat = area_permit_cog
-  if(run %in% c("inertia-ind","lat-ind","lon-ind")) dat = area_permit_cog_ind
+  if(run=="area_permit_cog") dat = area_permit_cog
+  if(run=="area_permit_cog-ind") dat = area_permit_cog_ind
   if(run=="haul_dist") dat = haul_dist
   if(run=="haul_dist-ind") dat = haul_dist_ind
   if(run=="eff_days") dat = eff_days
   if(run=="eff_days-ind") dat = eff_days_ind
 
-  if(run%in% c("inertia","inertia-ind")) {
+  if(run%in% c("area_permit_cog","area_permit_cog-ind")) {
     ylabel = "ln sqrt(inertia)"
     dat$response = log(dat$total_sd)
-  }
-  if(run%in% c("lat","lat-ind")) {
-    ylabel = "latitude"
-    dat$response = dat$lat_mean
-  }
-  if(run%in% c("lon","lon-ind")) {
-    ylabel = "longitude"
-    dat$response = dat$lon_mean
   }
   if(run%in% c("haul_dist","haul_dist-ind")) {
     ylabel = "ln distance"
@@ -98,24 +86,24 @@ for(run in c("inertia","inertia-ind",
   if(data == "Alaska") {
     # longline misc. groundfish    pelagic trawl         rockfish
     dat$catch_share[which(dat$sector2 == "rockfish" & dat$year >= 2005)] = 1
-    dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 2
+    dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 1
   }else{
     dat$catch_share[which(dat$sector2 == "LE/CS Trawl" & dat$year >= 2011)] = 1
-    dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 2
+    dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 1
+
   }
-  dat$catch_share = as.factor(dat$catch_share)
 
   # global year effect, with port level smooths (port = v)
   fit = list()
-  K = 10 # knots for year effects, for factor smooths
+  K = 10
 
   # New null model, response varies by subarea
   fit[[1]] = gam(response ~ catch_share + s(year,bs="ps"), weights = weights,data = dat)
   fit[[2]] = gam(response ~ catch_share + sector2 + subarea + s(year,bs="ps"), weights = weights,data = dat)
-  fit[[3]] = gam(response ~ catch_share + sector2 + subarea + s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
-  fit[[4]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
-  fit[[5]] = gam(response ~ catch_share + sector2 + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
-  fit[[6]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[3]] = gam(response ~ catch_share + sector2 + s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[4]] = gam(response ~ catch_share + subarea + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[5]] = gam(response ~ catch_share + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[6]] = gam(response ~ catch_share + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
 
   # save models for later summarizing
   saveRDS(fit, paste0("output/gams_",scale, "_",run,"_",data,"_", split_wc,".rds"))
@@ -136,12 +124,12 @@ for(run in c("inertia","inertia-ind",
   if(data == "Alaska") {
     # longline misc. groundfish    pelagic trawl         rockfish
     newdata$catch_share[which(newdata$sector2 == "rockfish" & newdata$year >= 2005)] = 1
-    newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 2
+    newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 1
   }else{
     newdata$catch_share[which(newdata$sector2 == "LE/CS Trawl" & newdata$year >= 2011)] = 1
-    newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 2
+    newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 1
+
   }
-  newdata$catch_share = as.factor(newdata$catch_share)
   # add block
 
   newdata = dplyr::filter(newdata,!is.na(sector2), !is.na(port))
@@ -191,7 +179,7 @@ for(run in c("inertia","inertia-ind",
   #model_pred <- predict(fit[[which.min(lapply(fit,AIC))]], newdata=newdata, se.fit=TRUE) # predict to new port -- will be same as mean
 
   # save plots
-  if(run=="inertia") {
+  if(run=="area_permit_cog") {
     counter = 1
   } else {
     counter = counter + 1
@@ -207,11 +195,7 @@ for(run in c("inertia","inertia-ind",
 
 ## Make summary table of AIC stats for paper
 model_results = NULL
-for(run in c("inertia","inertia-ind",
-             "haul_dist","haul_dist-ind",
-             "eff_days","eff_days-ind",
-             "lat","lat-ind",
-             "lon","lon-ind")) {
+for(run in c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind","eff_days","eff_days-ind")) {
   fit = readRDS(paste0("output/gams_",scale, "_",run,"_",data,"_", split_wc,".rds"))
   # extract AIC etc
   df = data.frame("Model"=1:6, "Run" = run, "AIC" = unlist(lapply(fit,AIC)))
@@ -225,10 +209,8 @@ for(run in c("inertia","inertia-ind",
   }
 }
 model_results$Metric = "Season"
-model_results$Metric[which(model_results$Run %in% c("inertia","inertia-ind"))] = "Inertia"
+model_results$Metric[which(model_results$Run %in% c("area_permit_cog","area_permit_cog-ind"))] = "Inertia"
 model_results$Metric[which(model_results$Run %in% c("haul_dist","haul_dist-ind"))] = "Distance"
-model_results$Metric[which(model_results$Run %in% c("lat","lat-ind"))] = "Latitude"
-model_results$Metric[which(model_results$Run %in% c("lon","lon-ind"))] = "Longitude"
 model_results$Area = data
 saveRDS(model_results, paste0("output/aic_",scale, "_",run,"_",data,"_", split_wc,".rds"))
 
@@ -240,10 +222,6 @@ plot_list[3]
 plot_list[4]
 plot_list[5]
 plot_list[6]
-plot_list[7]
-plot_list[8]
-plot_list[9]
-plot_list[10]
 dev.off()
 
 # also make combined plots
