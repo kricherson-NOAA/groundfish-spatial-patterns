@@ -3,20 +3,24 @@ library(dplyr)
 library(gratia)
 library(ggplot2)
 
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
 if(data == "Alaska"){
-  best_model_index = c(5,5,5,5,6,6) #
+  best_model_index = c(5,5,5,5,6,6,5,5,6,6) #
 }else{
   best_model_index = c(6,6,4,4,2,6)
 }
-run_names = c("area_permit_cog","area_permit_cog-ind","haul_dist","haul_dist-ind","eff_days","eff_days-ind")
+run_names = c("inertia","inertia-ind",
+              "haul_dist","haul_dist-ind",
+              "eff_days","eff_days-ind",
+              "lat","lat-ind",
+              "lon","lon-ind")
 
-df = data.frame(Model = 1:6, run = run_names, Est = NA, SE = NA, P_value = NA)
+df = data.frame(Model = 1:length(run_names), run = run_names, Est = NA, SE = NA, P_value = NA)
 
 for(run in 1:length(run_names)) {
 
@@ -27,14 +31,18 @@ for(run in 1:length(run_names)) {
   df$P_value[run] = summary(fits[[best_model_index[run]]])$p.pv[2]
 }
 
-df$Run = c("Inertia (aggregate)", "Inertia (individual)", "Distance (aggregate)", "Distance (individual)", "Days (aggregate)", "Days (individual)")
+df$Run = c("Inertia (aggregate)", "Inertia (individual)",
+           "Distance (aggregate)", "Distance (individual)",
+           "Days (aggregate)", "Days (individual)",
+           "Latitude (aggregate)", "Latitude (individual)",
+           "Longitude (aggregate)", "Longitude (individual)")
 
 df = dplyr::select(df, -run)
 
 saveRDS(df,paste0("output/table_catchshares_",data,".rds"))
 
-df_table <- df %>% 
-  select(Model, Run, Est, SE, P_value) %>% 
+df_table <- df %>%
+  select(Model, Run, Est, SE, P_value) %>%
   mutate_if(is.numeric, round, 4)
 
 write.csv(df_table,paste0("output/table_catchshares_",data,".csv"), row.names = F)
