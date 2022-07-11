@@ -98,12 +98,12 @@ for(run in c("inertia","inertia-ind",
   if(data == "Alaska") {
     # longline misc. groundfish    pelagic trawl         rockfish
     dat$catch_share[which(dat$sector2 == "rockfish" & dat$year >= 2005)] = 1
-    dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 1
+    dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 2
   }else{
     dat$catch_share[which(dat$sector2 == "LE/CS Trawl" & dat$year >= 2011)] = 1
-    dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 1
-
+    dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 2
   }
+  dat$catch_share = as.factor(dat$catch_share)
 
   # global year effect, with port level smooths (port = v)
   fit = list()
@@ -114,7 +114,7 @@ for(run in c("inertia","inertia-ind",
   fit[[2]] = gam(response ~ catch_share + sector2 + subarea + s(year,bs="ps"), weights = weights,data = dat)
   fit[[3]] = gam(response ~ catch_share + sector2 + subarea + s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
   fit[[4]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
-  fit[[5]] = gam(response ~ catch_share + sector2 + subarea + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+  fit[[5]] = gam(response ~ catch_share + sector2 + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
   fit[[6]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
 
   # save models for later summarizing
@@ -136,12 +136,12 @@ for(run in c("inertia","inertia-ind",
   if(data == "Alaska") {
     # longline misc. groundfish    pelagic trawl         rockfish
     newdata$catch_share[which(newdata$sector2 == "rockfish" & newdata$year >= 2005)] = 1
-    newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 1
+    newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 2
   }else{
     newdata$catch_share[which(newdata$sector2 == "LE/CS Trawl" & newdata$year >= 2011)] = 1
-    newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 1
-
+    newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 2
   }
+  newdata$catch_share = as.factor(newdata$catch_share)
   # add block
 
   newdata = dplyr::filter(newdata,!is.na(sector2), !is.na(port))
@@ -240,6 +240,10 @@ plot_list[3]
 plot_list[4]
 plot_list[5]
 plot_list[6]
+plot_list[7]
+plot_list[8]
+plot_list[9]
+plot_list[10]
 dev.off()
 
 # also make combined plots
