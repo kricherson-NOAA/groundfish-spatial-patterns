@@ -25,7 +25,7 @@ eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
 sbbox <- make_bbox(lon = c(-126,-120), lat = c(34.5,48), f = .1)
 sq_map <- get_map(location = sbbox, maptype = "sattelite", source = "google")
 
-as_map <- ggmap(sq_map) + 
+as_map <- ggmap(sq_map) +
   geom_point(data = dplyr::filter(area_permit_cog, sector2 == "At-sea hake"), mapping = aes(x = lon_mean, y = lat_mean, size = total_sd, color = year), alpha = 0.75)+
   scale_color_viridis()+
   ggtitle("At-sea\nhake")+
@@ -35,9 +35,9 @@ as_map <- ggmap(sq_map) +
   labs(color = "Year")+
   labs(size = "Inertia")+
   scale_size(limits = range(area_permit_cog$total_sd))
-  
 
-bt_map <- ggmap(sq_map) + 
+
+bt_map <- ggmap(sq_map) +
   geom_point(data = dplyr::filter(area_permit_cog, sector2 == "LE/CS Trawl"), mapping = aes(x = lon_mean, y = lat_mean, size = total_sd, color = year),alpha = 0.75)+
   scale_color_viridis()+
   ggtitle("Groundfish\nbottom trawl")+
@@ -47,10 +47,10 @@ bt_map <- ggmap(sq_map) +
   labs(color = "Year")+
   labs(size = "Inertia")+
   geom_hline(yintercept = 40 + 1/6)+
-  scale_size(limits = range(area_permit_cog$total_sd)) 
+  scale_size(limits = range(area_permit_cog$total_sd))
 
 
-sabl_map <- ggmap(sq_map) + 
+sabl_map <- ggmap(sq_map) +
   geom_point(data = dplyr::filter(area_permit_cog, sector2 == "Limited Entry Sablefish"), mapping = aes(x = lon_mean, y = lat_mean, size = total_sd, color = year),alpha = 0.75)+
   scale_color_viridis()+
   ggtitle("Limited entry\nsablefish")+
@@ -60,10 +60,10 @@ sabl_map <- ggmap(sq_map) +
   labs(color = "Year")+
   labs(size = "Inertia")+
   geom_hline(yintercept = 40 + 1/6)+
-  scale_size(limits = range(area_permit_cog$total_sd)) 
+  scale_size(limits = range(area_permit_cog$total_sd))
 
 
-all_maps <- ggarrange(as_map, bt_map, sabl_map, 
+all_maps <- ggarrange(as_map, bt_map, sabl_map,
           #labels = c("A", "B", "C"),
           ncol = 3,
           common.legend = TRUE, legend="right")
@@ -71,7 +71,7 @@ all_maps <- ggarrange(as_map, bt_map, sabl_map,
 ggsave(all_maps, file = paste0("figures/cg_inertia_map_",scale, "_",data,"_", split_wc,".jpeg"), height=7, width=7)
 
 #Also make an individual level map, maybe for supplement?
-as_map_ind <- ggmap(sq_map) + 
+as_map_ind <- ggmap(sq_map) +
   geom_point(data = dplyr::filter(area_permit_cog_ind, sector2 == "At-sea hake"), mapping = aes(x = lon_mean, y = lat_mean, size = total_sd, color = year), alpha = 0.75)+
   scale_color_viridis()+
   ggtitle("At-sea\nhake")+
@@ -83,7 +83,7 @@ as_map_ind <- ggmap(sq_map) +
   scale_size(limits = range(area_permit_cog_ind$total_sd))
 
 
-bt_map_ind <- ggmap(sq_map) + 
+bt_map_ind <- ggmap(sq_map) +
   geom_point(data = dplyr::filter(area_permit_cog_ind, sector2 == "LE/CS Trawl"), mapping = aes(x = lon_mean, y = lat_mean, size = total_sd, color = year),alpha = 0.75)+
   scale_color_viridis()+
   ggtitle("Groundfish\nbottom trawl")+
@@ -93,10 +93,10 @@ bt_map_ind <- ggmap(sq_map) +
   labs(color = "Year")+
   labs(size = "Inertia")+
   geom_hline(yintercept = 40 + 1/6)+
-  scale_size(limits = range(area_permit_cog_ind$total_sd)) 
+  scale_size(limits = range(area_permit_cog_ind$total_sd))
 
 
-sabl_map_ind <- ggmap(sq_map) + 
+sabl_map_ind <- ggmap(sq_map) +
   geom_point(data = dplyr::filter(area_permit_cog_ind, sector2 == "Limited Entry Sablefish"), mapping = aes(x = lon_mean, y = lat_mean, size = total_sd, color = year),alpha = 0.75)+
   scale_color_viridis()+
   ggtitle("Limited entry\nsablefish")+
@@ -106,10 +106,10 @@ sabl_map_ind <- ggmap(sq_map) +
   labs(color = "Year")+
   labs(size = "Inertia")+
   geom_hline(yintercept = 40 + 1/6)+
-  scale_size(limits = range(area_permit_cog_ind$total_sd)) 
+  scale_size(limits = range(area_permit_cog_ind$total_sd))
 
 
-all_maps_ind <- ggarrange(as_map_ind, bt_map_ind, sabl_map_ind, 
+all_maps_ind <- ggarrange(as_map_ind, bt_map_ind, sabl_map_ind,
                       #labels = c("A", "B", "C"),
                       ncol = 3,
                       common.legend = TRUE, legend="right")
