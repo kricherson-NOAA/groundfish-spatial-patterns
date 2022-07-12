@@ -161,17 +161,17 @@ if (data == "WC")
   d = dplyr::filter(d, v %in% c("UNK","FLP","IFP","FLD")==FALSE)
   d$keep = 0
   # keep combos with 15+ years of data
-  d$keep[which(d$sector2=="longline" & d$v %in% c("AKU","ALI",
+  d$keep[which(d$sector2=="longline" & d$r_port %in% c("AKU","ALI",
                                                         "COR","CRG","DUT",
                                                         "HNH","HOM","JNU",
                                                         "KCO","KOD","KTN",
                                                         "PBG","PEL","SEW","SIT","VAL",
                                                         "WRN","YAK"))] = 1
   # rockfish in kodiak
-  d$keep[which(d$sector2 == "rockfish" & d$v == "KOD")] = 1
+  d$keep[which(d$sector2 == "rockfish" & d$r_port == "KOD")] = 1
   # groundfish, pelagic trawl in: KCO, KOD, SPT
-  d$keep[which(d$sector2 == "pelagic trawl" & d$v %in% c("KCO","KOD","SPT"))] = 1
-  d$keep[which(d$sector2 == "misc. groundfish" & d$v %in% c("KCO","KOD","SPT"))] = 1
+  d$keep[which(d$sector2 == "pelagic trawl" & d$r_port %in% c("KCO","KOD","SPT"))] = 1
+  d$keep[which(d$sector2 == "misc. groundfish" & d$r_port %in% c("KCO","KOD","SPT"))] = 1
   d = dplyr::filter(d,keep==1)
 }
 
