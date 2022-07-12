@@ -100,7 +100,7 @@ if(scale=="port") {
     #Join home port derived from to observer data, remove the very small number of observer data rows that did not have a match in the fish ticket data (<1%)
     d <- d %>%
       left_join(home_ports, by =c("drvid", "sector2", "year")) %>%
-      mutate(home_port = ifelse(sector2 == "At-sea hake", r_port, home_port)) %>%
+      mutate(home_port = ifelse(sector2 %in% c("At-sea hake CP", "At-sea hake MS", "At-sea hake"), r_port, home_port)) %>%
       filter(!is.na(home_port)) %>%
       dplyr::select(-v, -n) %>%
       rename(v = home_port)
@@ -214,7 +214,7 @@ if(cs_sensitivity == TRUE) {
                        n_post = length(which(unique(year) >= 2011))) %>%
       dplyr::filter(n_pre >= 4, n_post >= 4)
 
-    grp_2 <- dplyr::filter(d, sector2 == "At-sea hake") %>%
+    grp_2 <- dplyr::filter(d, grepl("At-sea hake", sector2)) %>%
       dplyr::group_by(drvid) %>%
       dplyr::summarize(n_pre = length(which(unique(year) < 2011)),
                        n_post = length(which(unique(year) >= 2011))) %>%
