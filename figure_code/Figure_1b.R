@@ -6,7 +6,7 @@ library(ggpubr)
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
 data <- c("Alaska", "WC")[1]
-scale = c("region","port")[2]
+scale = c("region","port")[1]
 n_top_ports <- 50
 
 #Split west coast into north/south of 40 10?
