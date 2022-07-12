@@ -48,9 +48,9 @@ if(data == "Alaska") {
 
   d <- readRDS("Data/gf_haul.rds") %>%
     dplyr::filter(sector2 %in% wc_sectors) %>%
-    dplyr::mutate(sector2 = ifelse(grepl("At-sea hake", sector2),
-                                   "At-sea hake",
-                                   sector2)) %>%  #Combine at-sea CP and MS for now
+    # dplyr::mutate(sector2 = ifelse(grepl("At-sea hake", sector2),
+    #                                "At-sea hake",
+    #                                sector2)) %>%  #Combine at-sea CP and MS for now
     mutate(subarea = area) #Not sure if this is the best way to match up with AK data - placeholder for now
 
   ft <- readRDS("Data/ft.rds") %>%
