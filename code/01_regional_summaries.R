@@ -49,9 +49,9 @@ if(data == "Alaska") {
                                    "At-sea hake",
                                    sector2)) %>%  #Combine at-sea CP and MS for now
     mutate(subarea = area) #Not sure if this is the best way to match up with AK data - placeholder for now
-  
+
   ft <- readRDS("Data/ft.rds") %>%
-    dplyr::filter(sector2 %in% wc_sectors) %>% 
+    dplyr::filter(sector2 %in% wc_sectors) %>%
     mutate(subarea = area) #Not sure if this is the best way to match up with AK data - placeholder for now
 
   if(split_wc == "one_area")
@@ -72,44 +72,44 @@ if(scale=="port") {
   # remove number codes
   port_list = port_list[which(is.na(as.numeric(port_list$r_port))),]
   port_list = port_list$r_port[1:n_top_ports]
-  
-  #On the west coat, there's only 34 ports total, so remove NAs that get generated 
+
+  #On the west coat, there's only 34 ports total, so remove NAs that get generated
   port_list <- port_list[!is.na(port_list)]
-  
+
   ft$v <- ft$r_port
-  
+
   #If we DON'T want to restrict analysis to only vessels landing in one port, let's define v as the port that vessels land in most often in a given year/sector, according to fish tickets (their "home port")
-  
+
   if(include_all_vessels)
   {
-    
-    home_ports <- ft %>% 
+
+    home_ports <- ft %>%
       #summarize one "landing" (ie same port, vessel, and day)
-      group_by(year, sector2, drvid, landing_date, r_port) %>% 
-      summarise(total_mt = sum(mt)) %>% 
-      group_by(drvid, sector2, year, r_port) %>% 
+      group_by(year, sector2, drvid, landing_date, r_port) %>%
+      summarise(total_mt = sum(mt)) %>%
+      group_by(drvid, sector2, year, r_port) %>%
       summarise(n = n()) %>% #could also use highest weight or highest revenue....
-      group_by(drvid, sector2, year) %>% 
-      slice(which.max(n)) %>% 
-      rename(home_port = r_port) %>% 
+      group_by(drvid, sector2, year) %>%
+      slice(which.max(n)) %>%
+      rename(home_port = r_port) %>%
       ungroup()
-    
+
     #Join home port derived from to observer data, remove the very small number of observer data rows that did not have a match in the fish ticket data (<1%)
-    d <- d %>% 
-      left_join(home_ports, by =c("drvid", "sector2", "year")) %>% 
-      mutate(home_port = ifelse(sector2 == "At-sea hake", r_port, home_port)) %>% 
-      filter(!is.na(home_port)) %>% 
-      dplyr::select(-v, -n) %>% 
+    d <- d %>%
+      left_join(home_ports, by =c("drvid", "sector2", "year")) %>%
+      mutate(home_port = ifelse(sector2 == "At-sea hake", r_port, home_port)) %>%
+      filter(!is.na(home_port)) %>%
+      dplyr::select(-v, -n) %>%
       rename(v = home_port)
-    
+
     #Also change the ft data so that v = home port
-    ft <- ft %>% 
-      left_join(home_ports, by =c("drvid", "sector2", "year")) %>% 
-      dplyr::select(-v, -n) %>% 
+    ft <- ft %>%
+      left_join(home_ports, by =c("drvid", "sector2", "year")) %>%
+      dplyr::select(-v, -n) %>%
       rename(v = home_port)
-      
+
   }
-  
+
 } else {
   d$v <- d$area
   port_list = unique(d$r_port)
@@ -121,9 +121,23 @@ if(scale=="port") {
 d$port_fisher = paste(d$year, d$drvid)
 port_fisher = dplyr::group_by(d, year, drvid) %>%
   dplyr::summarize(n = length(unique(r_port)),
-                   port_fisher = paste(year, drvid)) %>%
-  dplyr::filter(n == 1)
+                   port_fisher = paste(year, drvid))
+# break the dplyr commands here to output summary stats of ports per fisher
+port_fisher$yearf <- as.factor(port_fisher$year)
 
+g <- ggplot(port_fisher, aes(x = n, y = yearf)) +
+  geom_density_ridges(scale = 2, col=viridis(1), fill=viridis(1), alpha=0.3) +
+  coord_flip() +
+  coord_cartesian(xlim=c(0.7,5.5)) +
+  theme_bw() + xlab("Ports per fisher") +
+  ylab("Year") +
+  scale_y_discrete(expand = expansion(add = c(0.1, 2)))
+ggsave(g, filename = paste0("figures/Ports_per_fisher_",data,".png"),
+       height = 6, width = 6)
+
+# port_fisher is a data frame with IDs-years of single port fishers
+port_fisher <- port_fisher %>%
+  dplyr::filter(n == 1)
 
 #I get an error about "$ operator is invalid for atomic vectors" when filtering to data to port_fisher %in% port_fisher$port_fisher, this is a workaround -KR
 single_port_fishers <- port_fisher$port_fisher
@@ -162,9 +176,9 @@ if (data == "WC")
 if(include_all_vessels)
 {
   d = dplyr::filter(d, r_port %in% port_list)
-  
+
 }else{
-  
+
   d = dplyr::filter(d, port_fisher %in% single_port_fishers,
                     r_port %in% port_list)
 }
@@ -297,16 +311,16 @@ if(data == "WC")
   # filter all records to only use single port fishers?
   if(include_all_vessels)
   {
-    
+
     ft = dplyr::filter(ft, r_port %in% port_list)
-    
+
   }else{
-    
+
     ft = dplyr::filter(ft, port_fisher %in% single_port_fishers,
                        r_port %in% port_list)
   }
 
-  
+
   season_eff_ft <- dplyr::group_by(ft, year, v, sector2, j_landing_day) %>%
     dplyr::summarise(ret = sum(mt), sector2=sector2[1],
                      v = r_port[1],
@@ -315,7 +329,7 @@ if(data == "WC")
     dplyr::mutate(ret_yr = sum(ret), p = ret/ret_yr) %>%# normalize
     dplyr::group_by(year, v, sector2,subarea) %>%
     dplyr::summarize(n = n(), effective_days = 1/(sum(p^2)))
-  
+
   season_eff_ind_ft <- dplyr::group_by(ft, year, drvid, j_landing_day) %>%
     dplyr::summarise(ret = sum(mt), sector2=sector2[1],
                      v = r_port[1],
@@ -325,12 +339,12 @@ if(data == "WC")
                   effective_days = 1/(sum(p^2))) %>% # normalize
     dplyr::group_by(year, v, sector2,subarea) %>%
     dplyr::summarize(n = n(), effective_days = mean(effective_days))
-  
+
   #Add on at-sea effective days fished, then save this for further analysis
-  season_eff <- filter(season_eff, sector2 == "At-sea hake") %>% 
+  season_eff <- filter(season_eff, sector2 == "At-sea hake") %>%
     bind_rows(season_eff_ft)
-  
-  season_eff_ind <- filter(season_eff_ind, sector2 == "At-sea hake") %>% 
+
+  season_eff_ind <- filter(season_eff_ind, sector2 == "At-sea hake") %>%
     bind_rows(season_eff_ind_ft)
 }
 
@@ -415,10 +429,14 @@ set.seed(123)
 d_sample = sample(d$id, size=nrow(d), replace=T, prob = d$ret_mt)
 
 p10 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day, year, group=year)) +
-  geom_density_ridges() +
+  geom_density_ridges(fill=viridis(1), alpha=0.3, col=viridis(1)) +
   xlab("Calendar day") +
   ylab("Year") +
-  ggtitle("Distribution of landings")
+  theme_bw() +
+  coord_cartesian(xlim=c(0,366))
+
+ggsave(p10, filename = paste0("figures/Calendar_day_ridges_",data,".png"),
+       height = 6, width = 6)
 
 #Also plot by sector
 p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day, year, group=year)) +
