@@ -19,6 +19,9 @@ n_top_ports <- 50
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
+#Use only individuals fishing before/after catch shares (FALSE includes all)?
+cs_sensitivity <- FALSE
+
 #Include all vessels, or just those that fish out of one port?
 include_all_vessels <- TRUE
 
@@ -183,6 +186,42 @@ if(include_all_vessels)
                     r_port %in% port_list)
 }
 
+# For Supplementary analysis for paper, we're also interested in
+# a sensitivity looking at catch share effects for only the fishers who
+# were active pre / post catch shares. This is a little tricky because the
+# time of catch shares varies by sector -- so not sure of best way to code
+if(cs_sensitivity == TRUE) {
+  if (data == "Alaska") {
+    # filter only folks active for 4+ years before/after catch shares.
+    # 4 years seems arbitrary, but it's the minimum we can use for AK longline -
+    # data starts in 1991 and CS happens in 1995
+    grp_1 <- dplyr::filter(d, sector2 == "rockfish") %>%
+      dplyr::group_by(drvid) %>%
+      dplyr::summarize(n_pre = length(which(unique(year) < 2005)),
+                       n_post = length(which(unique(year) >= 2005))) %>%
+      dplyr::filter(n_pre >= 4, n_post >= 4)
+
+    grp_2 <- dplyr::filter(d, sector2 == "longline") %>%
+      dplyr::group_by(drvid) %>%
+      dplyr::summarize(n_pre = length(which(unique(year) < 1995)),
+                       n_post = length(which(unique(year) >= 1995))) %>%
+      dplyr::filter(n_pre >= 4, n_post >= 4)
+  } else{
+    # filter only folks active for 5+ years before/after catch shares
+    grp_1 <- dplyr::filter(d, sector2 == "LE/CS Trawl") %>%
+      dplyr::group_by(drvid) %>%
+      dplyr::summarize(n_pre = length(which(unique(year) < 2011)),
+                       n_post = length(which(unique(year) >= 2011))) %>%
+      dplyr::filter(n_pre >= 4, n_post >= 4)
+
+    grp_2 <- dplyr::filter(d, sector2 == "At-sea hake") %>%
+      dplyr::group_by(drvid) %>%
+      dplyr::summarize(n_pre = length(which(unique(year) < 2011)),
+                       n_post = length(which(unique(year) >= 2011))) %>%
+      dplyr::filter(n_pre >= 4, n_post >= 4)
+  }
+  d <- dplyr::filter(d, drvid %in% c(grp_1$drvid, grp_2$drvid))
+}
 
 # do coarse summaries by area and year
 area_cog <-
