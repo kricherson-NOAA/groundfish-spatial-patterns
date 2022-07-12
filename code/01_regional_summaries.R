@@ -488,7 +488,7 @@ p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day,
   geom_density_ridges(fill=viridis(1), alpha=0.3, col=viridis(1)) +
   xlab("Calendar day") +
   ylab("Year") +
-  ggtitle("Distribution of landings")+
+  #ggtitle("Distribution of landings")+
   facet_wrap(~sector2, scales = "free")+
   theme_bw() +
   coord_cartesian(xlim=c(0,366))

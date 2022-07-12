@@ -21,6 +21,15 @@ haul_dist_ind = readRDS(paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
 eff_days = readRDS(paste0("data/",data,"_",scale,"_days",".rds"))
 eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
 
+area_permit_cog$sector2[which(area_permit_cog$sector2=="longline")] = "Longline"
+area_permit_cog$sector2[which(area_permit_cog$sector2=="misc. groundfish")] = "Misc. groundfish"
+area_permit_cog$sector2[which(area_permit_cog$sector2=="pelagic trawl")] = "Pelagic trawl"
+area_permit_cog$sector2[which(area_permit_cog$sector2=="rockfish")] = "Rockfish"
+area_permit_cog_ind$sector2[which(area_permit_cog_ind$sector2=="longline")] = "Longline"
+area_permit_cog_ind$sector2[which(area_permit_cog_ind$sector2=="misc. groundfish")] = "Misc. groundfish"
+area_permit_cog_ind$sector2[which(area_permit_cog_ind$sector2=="pelagic trawl")] = "Pelagic trawl"
+area_permit_cog_ind$sector2[which(area_permit_cog_ind$sector2=="rockfish")] = "Rockfish"
+
 #What would it look like it we plot the region-level COG over time?
 #sbbox <- make_bbox(lon = area_permit_cog$lon_mean, lat = area_permit_cog$lat_mean, f = .1)
 sbbox <- make_bbox(lon = c(-165,-135), lat = c(50,60), f = .1)
