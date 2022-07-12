@@ -479,11 +479,17 @@ ggsave(p10, filename = paste0("figures/Calendar_day_ridges_",data,".png"),
 
 #Also plot by sector
 p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day, year, group=year)) +
-  geom_density_ridges() +
+  geom_density_ridges(fill=viridis(1), alpha=0.3, col=viridis(1)) +
   xlab("Calendar day") +
   ylab("Year") +
   ggtitle("Distribution of landings")+
-  facet_wrap(~sector2, scales = "free")
+  facet_wrap(~sector2, scales = "free")+
+  theme_bw() +
+  coord_cartesian(xlim=c(0,366))
+
+ggsave(p11, filename = paste0("figures/Calendar_day_ridges_sector_",data,".png"),
+       height = 6, width = 6)
+
 
 plot_list <- list()
 sub = dplyr::filter(d[d_sample,], r_port %in% port_list)
