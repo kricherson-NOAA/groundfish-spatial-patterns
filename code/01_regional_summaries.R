@@ -12,7 +12,7 @@ library(viridis)
 library(tidyr)
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
 n_top_ports <- 50
 
@@ -222,6 +222,12 @@ if(cs_sensitivity == TRUE) {
   }
   d <- dplyr::filter(d, drvid %in% c(grp_1$drvid, grp_2$drvid))
 }
+
+# plot ports available by sector (and region?)
+port_df <- dplyr::group_by(d, sector2, subarea, year) %>%
+  dplyr::summarize(n_port = length(unique(r_port)))
+saveRDS(port_df, paste0("data/",data,"_",scale,"_ports",".rds"))
+
 
 # do coarse summaries by area and year
 area_cog <-
@@ -482,7 +488,7 @@ p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day,
   geom_density_ridges(fill=viridis(1), alpha=0.3, col=viridis(1)) +
   xlab("Calendar day") +
   ylab("Year") +
-  ggtitle("Distribution of landings")+
+  #ggtitle("Distribution of landings")+
   facet_wrap(~sector2, scales = "free")+
   theme_bw() +
   coord_cartesian(xlim=c(0,366))
