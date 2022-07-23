@@ -8,25 +8,50 @@ scale = c("region","port")[2]
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
-# for Alaska data, model 5 is best supported for
+#Use only individuals fishing before/after catch shares (FALSE includes all)?
+cs_sensitivity <- FALSE
 
-inertia = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog","_",data,"_", split_wc,".rds"))
-inertia_ind = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog-ind","_",data,"_", split_wc,".rds"))
-
-if(data == "Alaska")
+#label that appends file names with whether we subset only to vessels present both before and after CS ("stayers")
+if(cs_sensitivity)
 {
-  # Only use data from best model
-  inertia = dplyr::filter(inertia, model==5) %>%
-    dplyr::mutate("Scale"="Aggregate")
-  inertia_ind = dplyr::filter(inertia_ind, model==5) %>%
-    dplyr::mutate("Scale"="Individual")
+  cs_sens_label = "stayers"
 }else{
-  # Only use data from best model (6 on the west coast)
-  inertia = dplyr::filter(inertia, model==6) %>%
-    dplyr::mutate("Scale"="Aggregate")
-  inertia_ind = dplyr::filter(inertia_ind, model==6) %>%
-    dplyr::mutate("Scale"="Individual")
+  cs_sens_label = "allvessels"
 }
+
+#call up best models as needed
+best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
+
+
+# inertia = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+# inertia_ind = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+
+#NOTE I think the above may read in the wrong inertia predictions? I think this is right:
+inertia = readRDS(paste0("output/predictions_",scale, "_","inertia","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+inertia_ind = readRDS(paste0("output/predictions_",scale, "_","inertia-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+# 
+# if(data == "Alaska")
+# {
+#   # Only use data from best model
+#   inertia = dplyr::filter(inertia, model==5) %>%
+#     dplyr::mutate("Scale"="Aggregate")
+#   inertia_ind = dplyr::filter(inertia_ind, model==5) %>%
+#     dplyr::mutate("Scale"="Individual")
+# }else{
+#   # Only use data from best model (6 on the west coast)
+#   inertia = dplyr::filter(inertia, model==6) %>%
+#     dplyr::mutate("Scale"="Aggregate")
+#   inertia_ind = dplyr::filter(inertia_ind, model==6) %>%
+#     dplyr::mutate("Scale"="Individual")
+# }
+
+#try calling up the best model predictions dynamically
+inertia <- dplyr::filter(inertia, model == dplyr::filter(best_model_df, Run == "inertia")$Model) %>% 
+  dplyr::mutate("Scale"="Aggregate")
+
+inertia_ind <- dplyr::filter(inertia_ind, model == dplyr::filter(best_model_df, Run == "inertia-ind")$Model) %>% 
+  dplyr::mutate("Scale"="Individual")
+
 
 df = rbind(inertia, inertia_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
@@ -67,6 +92,6 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   scale_color_viridis_d(end=0.5) +
   scale_fill_viridis_d(end=0.5)
 g
-ggsave(paste0("figures/inertia_",scale, "_gams_",data,"_", split_wc,".jpeg"), height=7, width=7)
+ggsave(paste0("figures/inertia_",scale, "_gams_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height=7, width=7)
 
 

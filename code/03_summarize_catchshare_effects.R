@@ -9,11 +9,13 @@ scale = c("region","port")[2]
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
-if(data == "Alaska"){
-  best_model_index = c(5,5,5,5,6,6,5,5,6,6) #
-}else{
-  best_model_index = c(6,6,4,4,2,6,3,6,6,6)
-}
+# if(data == "Alaska"){
+#   best_model_index = c(5,5,5,5,6,6,5,5,6,6) #
+# }else{
+#   best_model_index = c((model_results %>% group_by(Run) %>% filter(AIC == min(AIC)))$Model)
+# }
+best_model_index = c((model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC)))$Model) 
+
 run_names = c("inertia","inertia-ind",
               "haul_dist","haul_dist-ind",
               "eff_days","eff_days-ind",
@@ -55,10 +57,10 @@ if(data == "Alaska") {
 df = rbind(df_1, df_2)
 df = dplyr::select(df, -run)
 
-saveRDS(df,paste0("output/table_catchshares_",data,".rds"))
+saveRDS(df,paste0("output/table_catchshares_",data,"_",cs_sens_label,".rds"))
 
 df_table <- df %>%
   dplyr::select(Run, Est, SE, P_value, Sector) %>%
   mutate_if(is.numeric, round, 4)
 
-write.csv(df_table,paste0("output/table_catchshares_",data,".csv"), row.names = F)
+write.csv(df_table,paste0("output/table_catchshares_",data,"_",cs_sens_label,".csv"), row.names = F)

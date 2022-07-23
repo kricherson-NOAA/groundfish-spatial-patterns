@@ -9,13 +9,25 @@ scale = c("region","port")[2]
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
+#Use only individuals fishing before/after catch shares (FALSE includes all)?
+cs_sensitivity <- TRUE
+
+#label that appends file names with whether we subset only to vessels present both before and after CS ("stayers")
+if(cs_sensitivity)
+{
+  cs_sens_label = "stayers"
+}else{
+  cs_sens_label = "allvessels"
+}
+
+
 # these dataframes get created by 01_regional_summaries.r
-area_permit_cog = readRDS(paste0("data/",data,"_",scale,"_cog",".rds"))
-area_permit_cog_ind = readRDS(paste0("data/",data,"_",scale,"_cog-ind",".rds"))
-haul_dist = readRDS(paste0("data/",data,"_",scale,"_hauldist",".rds"))
-haul_dist_ind = readRDS(paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
-eff_days = readRDS(paste0("data/",data,"_",scale,"_days",".rds"))
-eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
+area_permit_cog = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog",".rds"))
+area_permit_cog_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog-ind",".rds"))
+haul_dist = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist",".rds"))
+haul_dist_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist-ind",".rds"))
+eff_days = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_days",".rds"))
+eff_days_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_days-ind",".rds"))
 
 # using area permit_cog as an example, the predictor variables here are:
 # year, port (v) / subarea, and sector2.
@@ -101,7 +113,9 @@ for(run in c("inertia","inertia-ind",
     dat$catch_share[which(dat$sector2 == "longline" & dat$year >= 1995)] = 2
   }else{
     dat$catch_share[which(dat$sector2 == "LE/CS Trawl" & dat$year >= 2011)] = 1
-    dat$catch_share[which(dat$sector2 == "At-sea hake" & dat$year >= 2011)] = 2
+    dat$catch_share[which(dat$sector2 == "At-sea hake CP" & dat$year >= 2011)] = 2
+    dat$catch_share[which(dat$sector2 == "At-sea hake MS" & dat$year >= 2011)] = 3
+    
   }
   dat$catch_share = as.factor(dat$catch_share)
 
@@ -118,7 +132,7 @@ for(run in c("inertia","inertia-ind",
   fit[[6]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
 
   # save models for later summarizing
-  saveRDS(fit, paste0("output/gams_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+  saveRDS(fit, paste0("output/gams_",scale, "_",run,"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
   # Add random intercepts to ports
   # fit[[7]] = gam(response ~ s(year,bs="ps") + s(port,bs="re"), weights = weights,data = dat)
@@ -139,8 +153,9 @@ for(run in c("inertia","inertia-ind",
     newdata$catch_share[which(newdata$sector2 == "longline" & newdata$year >= 1995)] = 2
   }else{
     newdata$catch_share[which(newdata$sector2 == "LE/CS Trawl" & newdata$year >= 2011)] = 1
-    newdata$catch_share[which(newdata$sector2 == "At-sea hake" & newdata$year >= 2011)] = 2
-  }
+    dat$catch_share[which(dat$sector2 == "At-sea hake CP" & dat$year >= 2011)] = 2
+    dat$catch_share[which(dat$sector2 == "At-sea hake MS" & dat$year >= 2011)] = 3
+    }
   newdata$catch_share = as.factor(newdata$catch_share)
   # add block
 
@@ -167,7 +182,7 @@ for(run in c("inertia","inertia-ind",
     newdf$region = data
     all_pred = rbind(all_pred, newdf)
   }
-  saveRDS(all_pred, paste0("output/predictions_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+  saveRDS(all_pred, paste0("output/predictions_",scale, "_",run,"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
   # make initial plots using model with lowest AIC
   model_pred <- predict(fit[[which.min(lapply(fit,AIC))]], newdata=newdata, se.fit=TRUE) # predict to new port -- will be same as mean
@@ -230,10 +245,10 @@ model_results$Metric[which(model_results$Run %in% c("haul_dist","haul_dist-ind")
 model_results$Metric[which(model_results$Run %in% c("lat","lat-ind"))] = "Latitude"
 model_results$Metric[which(model_results$Run %in% c("lon","lon-ind"))] = "Longitude"
 model_results$Area = data
-saveRDS(model_results, paste0("output/aic_",scale, "_",run,"_",data,"_", split_wc,".rds"))
+saveRDS(model_results, paste0("output/aic_",scale, "_",run,"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
 
-pdf(paste0("output/",scale, "_gams_",data,"_", split_wc,".pdf"))
+pdf(paste0("output/",scale, "_gams_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
 plot_list[1]
 plot_list[2]
 plot_list[3]
@@ -269,7 +284,8 @@ newdf_ind = left_join(df, dplyr::select(pred_list[[4]], year, sector2, subarea, 
   dplyr::mutate("Model"="Individual")
 newdf = rbind(newdf,newdf_ind)
 
-p2 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
+#don't plot at-sea hake here since there is no distance to port
+p2 = ggplot(newdf %>% filter(subarea !="at sea" & !grepl("hake", sector2)), aes(year, fit, col=Model, fill=Model)) +
   geom_line() +
   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
   facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
@@ -287,7 +303,7 @@ p3 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
   facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
   theme_bw() + xlab("") + ylab("ln Days")
 
-pdf(paste0("output/",scale, "_gam-combined_",data,"_", split_wc,".pdf"))
+pdf(paste0("output/",scale, "_gam-combined_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
 p1
 p2
 p3

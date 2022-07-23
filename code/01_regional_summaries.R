@@ -12,7 +12,7 @@ library(viridis)
 library(tidyr)
 
 # these plots things like the COG or intertia (variance) for the larger ecoregions
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 n_top_ports <- 50
 
@@ -21,6 +21,7 @@ split_wc <- c("north_south", "one_area")[1]
 
 #Use only individuals fishing before/after catch shares (FALSE includes all)?
 cs_sensitivity <- FALSE
+
 
 #Include all vessels, or just those that fish out of one port?
 include_all_vessels <- TRUE
@@ -63,6 +64,15 @@ if(data == "Alaska") {
     ft$area <- "WC"
   }
 
+}
+
+
+#create a label to append file names with whether we subset only to vessels present both before and after CS ("stayers")
+if(cs_sensitivity)
+{
+  cs_sens_label = "stayers"
+}else{
+  cs_sens_label = "allvessels"
 }
 
 
@@ -128,7 +138,13 @@ port_fisher = dplyr::group_by(d, year, drvid) %>%
 # break the dplyr commands here to output summary stats of ports per fisher
 port_fisher$yearf <- as.factor(port_fisher$year)
 
-g <- ggplot(port_fisher, aes(x = n, y = yearf)) +
+#remove at-sea hake from this plot, since they will always (misleadingly) "land" in one port
+port_fisher_nohake <- dplyr::group_by(d %>% filter(!grepl("hake", sector2)), year, drvid) %>%
+  dplyr::summarize(n = length(unique(r_port)),
+                   port_fisher = paste(year, drvid)) %>% 
+  mutate(yearf = as.factor(year))
+
+g <- ggplot(port_fisher_nohake, aes(x = n, y = yearf)) +
   geom_density_ridges(scale = 2, col=viridis(1), fill=viridis(1), alpha=0.3) +
   coord_flip() +
   coord_cartesian(xlim=c(0.7,5.5)) +
@@ -207,7 +223,7 @@ if(cs_sensitivity == TRUE) {
                        n_post = length(which(unique(year) >= 1995))) %>%
       dplyr::filter(n_pre >= 4, n_post >= 4)
   } else{
-    # filter only folks active for 5+ years before/after catch shares
+    # filter only folks active for 5+ years before/after catch shares - note this takes our sample size from 232 vessels to 60
     grp_1 <- dplyr::filter(d, sector2 == "LE/CS Trawl") %>%
       dplyr::group_by(drvid) %>%
       dplyr::summarize(n_pre = length(which(unique(year) < 2011)),
@@ -364,6 +380,25 @@ if(data == "WC")
     ft = dplyr::filter(ft, port_fisher %in% single_port_fishers,
                        r_port %in% port_list)
   }
+  
+  if(cs_sensitivity)
+  {
+    # filter only folks active for 5+ years before/after catch shares
+    ft_grp_1 <- dplyr::filter(ft, sector2 == "LE/CS Trawl") %>%
+      dplyr::group_by(drvid) %>%
+      dplyr::summarize(n_pre = length(which(unique(year) < 2011)),
+                       n_post = length(which(unique(year) >= 2011))) %>%
+      dplyr::filter(n_pre >= 4, n_post >= 4)
+    
+    ft_grp_2 <- dplyr::filter(ft, grepl("At-sea hake", sector2)) %>%
+      dplyr::group_by(drvid) %>%
+      dplyr::summarize(n_pre = length(which(unique(year) < 2011)),
+                       n_post = length(which(unique(year) >= 2011))) %>%
+      dplyr::filter(n_pre >= 4, n_post >= 4)
+    
+    ft <- dplyr::filter(ft, drvid %in% c(ft_grp_1$drvid, ft_grp_2$drvid))
+    
+  }
 
 
   season_eff_ft <- dplyr::group_by(ft, year, v, sector2, j_landing_day) %>%
@@ -386,20 +421,20 @@ if(data == "WC")
     dplyr::summarize(n = n(), effective_days = mean(effective_days))
 
   #Add on at-sea effective days fished, then save this for further analysis
-  season_eff <- filter(season_eff, sector2 == "At-sea hake") %>%
+  season_eff <- filter(season_eff, grepl("At-sea hake", sector2)) %>%
     bind_rows(season_eff_ft)
 
-  season_eff_ind <- filter(season_eff_ind, sector2 == "At-sea hake") %>%
+  season_eff_ind <- filter(season_eff_ind, grepl("At-sea hake", sector2)) %>%
     bind_rows(season_eff_ind_ft)
 }
 
 # saving the above dataframes as objects to run models on -- EW
-saveRDS(area_permit_cog, paste0("data/",data,"_",scale,"_cog",".rds"))
-saveRDS(area_permit_cog_ind, paste0("data/",data,"_",scale,"_cog-ind",".rds"))
-saveRDS(haul_dist, paste0("data/",data,"_",scale,"_hauldist",".rds"))
-saveRDS(haul_dist_ind, paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
-saveRDS(season_eff, paste0("data/",data,"_",scale,"_days",".rds"))
-saveRDS(season_eff_ind, paste0("data/",data,"_",scale,"_days-ind",".rds"))
+saveRDS(area_permit_cog, paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog",".rds"))
+saveRDS(area_permit_cog_ind, paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog-ind",".rds"))
+saveRDS(haul_dist, paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist",".rds"))
+saveRDS(haul_dist_ind, paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist-ind",".rds"))
+saveRDS(season_eff, paste0("data/",data,"_",cs_sens_label,"_",scale,"_days",".rds"))
+saveRDS(season_eff_ind, paste0("data/",data,"_",cs_sens_label,"_",scale,"_days-ind",".rds"))
 
 p1 <- ggplot(area_cog, aes(lon_mean, lat_mean,col=year)) +
   geom_point(alpha=0.6) +
@@ -480,7 +515,7 @@ p10 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day,
   theme_bw() +
   coord_cartesian(xlim=c(0,366))
 
-ggsave(p10, filename = paste0("figures/Calendar_day_ridges_",data,".png"),
+ggsave(p10, filename = paste0("figures/Calendar_day_ridges_",data,"_",cs_sens_label,".png"),
        height = 6, width = 6)
 
 #Also plot by sector
@@ -493,7 +528,7 @@ p11 <- ggplot(dplyr::filter(d[d_sample,], r_port %in% port_list), aes(j_set_day,
   theme_bw() +
   coord_cartesian(xlim=c(0,366))
 
-ggsave(p11, filename = paste0("figures/Calendar_day_ridges_sector_",data,".png"),
+ggsave(p11, filename = paste0("figures/Calendar_day_ridges_sector_",data,"_",cs_sens_label,".png"),
        height = 6, width = 6)
 
 
@@ -746,7 +781,7 @@ for (s in 1:length(unique(d$sector2)))
 }
 
 
-pdf(paste0("output/",scale, "_summaries_",data,"_", split_wc,".pdf"))
+pdf(paste0("output/",scale, "_summaries_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
 gridExtra::grid.arrange(p1,p2)
 print(p4)
 print(p5)

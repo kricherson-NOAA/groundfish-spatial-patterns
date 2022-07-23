@@ -8,23 +8,44 @@ scale = c("region","port")[2]
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
-# for Alaska data, model 5 is best supported for
+#Use only individuals fishing before/after catch shares (FALSE includes all)?
+cs_sensitivity <- FALSE
 
-dist = readRDS(paste0("output/predictions_",scale, "_","haul_dist","_",data,"_", split_wc,".rds"))
-dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",data,"_", split_wc,".rds"))
-
-# Only use data from best model
-if(data == "Alaska"){
-  dist = dplyr::filter(dist, model==5) %>%
-    dplyr::mutate("Scale"="Aggregate")
-  dist_ind = dplyr::filter(dist_ind, model==5) %>%
-    dplyr::mutate("Scale"="Individual")
+#label that appends file names with whether we subset only to vessels present both before and after CS ("stayers")
+if(cs_sensitivity)
+{
+  cs_sens_label = "stayers"
 }else{
-  dist = dplyr::filter(dist, model==4) %>%
-    dplyr::mutate("Scale"="Aggregate")
-  dist_ind = dplyr::filter(dist_ind, model==4) %>%
-    dplyr::mutate("Scale"="Individual")
+  cs_sens_label = "allvessels"
 }
+
+#call up best models as needed
+best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
+
+
+dist = readRDS(paste0("output/predictions_",scale, "_","haul_dist","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+
+# # Only use data from best model
+# if(data == "Alaska"){
+#   dist = dplyr::filter(dist, model==5) %>%
+#     dplyr::mutate("Scale"="Aggregate")
+#   dist_ind = dplyr::filter(dist_ind, model==5) %>%
+#     dplyr::mutate("Scale"="Individual")
+# }else{
+#   dist = dplyr::filter(dist, model==4) %>%
+#     dplyr::mutate("Scale"="Aggregate")
+#   dist_ind = dplyr::filter(dist_ind, model==4) %>%
+#     dplyr::mutate("Scale"="Individual")
+# }
+#try calling up the best model predictions dynamically
+dist <- dplyr::filter(dist, model == dplyr::filter(best_model_df, Run == "haul_dist")$Model) %>% 
+  dplyr::mutate("Scale"="Aggregate")
+
+dist_ind <- dplyr::filter(dist_ind, model == dplyr::filter(best_model_df, Run == "haul_dist-ind")$Model) %>% 
+  dplyr::mutate("Scale"="Individual")
+
+
 df = rbind(dist, dist_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
 
@@ -65,7 +86,7 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   scale_color_viridis_d(end=0.5) +
   scale_fill_viridis_d(end=0.5)
 g
-ggsave(paste0("figures/distance_",scale, "_",data,"_", split_wc,".jpeg"), height = 7, width=7)
+ggsave(paste0("figures/distance_",scale, "_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width=7)
 
 
 
