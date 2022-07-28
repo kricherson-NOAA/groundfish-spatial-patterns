@@ -3,31 +3,41 @@ library(dplyr)
 library(gratia)
 library(ggplot2)
 
-data <- c("Alaska", "WC")[2]
-scale = c("region","port")[2]
+all_combos <- expand.grid(data = c("Alaska", "WC")[1],
+                          scale = c("port"),
+                          split_wc = c("north_south","one_area")[1],
+                          cs_sensitivity = c(TRUE,FALSE),
+                          include_all_vessels = c(TRUE,FALSE))
 
-#Split west coast into north/south of 40 10?
-split_wc <- c("north_south", "one_area")[1]
-
-#Use only individuals fishing before/after catch shares (FALSE includes all)?
-cs_sensitivity <- TRUE
-
-#label that appends file names with whether we subset only to vessels present both before and after CS ("stayers")
-if(cs_sensitivity)
-{
-  cs_sens_label = "stayers"
-}else{
-  cs_sens_label = "allvessels"
-}
-
+for(ii in 1:nrow(all_combos)) {
+  data <- all_combos$data[ii]
+  scale <- all_combos$scale[ii]
+  #Split west coast into north/south of 40 10?
+  split_wc <- all_combos$split_wc[ii]
+  cs_sensitivity <- all_combos$split_wc[ii]
+  #label that appends file names with whether we subset only to vessels present both before and after CS ("stayers")
+  if(cs_sensitivity)
+  {
+    cs_sens_label = "stayers"
+  }else{
+    cs_sens_label = "allvessels"
+  }
 
 # these dataframes get created by 01_regional_summaries.r
+if(include_all_vessels==TRUE) {
 area_permit_cog = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog",".rds"))
 area_permit_cog_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog-ind",".rds"))
-haul_dist = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist",".rds"))
-haul_dist_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist-ind",".rds"))
 eff_days = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_days",".rds"))
 eff_days_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_days-ind",".rds"))
+model_runs <- c("inertia","inertia-ind",
+  "eff_days","eff_days-ind",
+  "lat","lat-ind",
+  "lon","lon-ind")
+} else {
+haul_dist = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist",".rds"))
+haul_dist_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist-ind",".rds"))
+model_runs <- c("haul_dist","haul_dist-ind")
+}
 
 # using area permit_cog as an example, the predictor variables here are:
 # year, port (v) / subarea, and sector2.
@@ -115,7 +125,7 @@ for(run in c("inertia","inertia-ind",
     dat$catch_share[which(dat$sector2 == "LE/CS Trawl" & dat$year >= 2011)] = 1
     dat$catch_share[which(dat$sector2 == "At-sea hake CP" & dat$year >= 2011)] = 2
     dat$catch_share[which(dat$sector2 == "At-sea hake MS" & dat$year >= 2011)] = 3
-    
+
   }
   dat$catch_share = as.factor(dat$catch_share)
 
@@ -308,3 +318,5 @@ p1
 p2
 p3
 dev.off()
+
+}
