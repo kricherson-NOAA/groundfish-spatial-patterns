@@ -453,15 +453,15 @@ if(data == "WC")
     bind_rows(season_eff_ind_ft)
 }
 
-# saving the above dataframes as objects to run models on -- EW
 if(include_all_vessels == TRUE) {
-  saveRDS(area_permit_cog, paste0("data/",data,"_",scale,"_cog","_",vessel_str,"_",cs_str,".rds"))
-  saveRDS(area_permit_cog_ind, paste0("data/",data,"_",scale,"_cog-ind","_",vessel_str,"_",cs_str,".rds"))
-  saveRDS(season_eff, paste0("data/",data,"_",scale,"_days","_",vessel_str,"_",cs_str,".rds"))
-  saveRDS(season_eff_ind, paste0("data/",data,"_",scale,"_days-ind","_",vessel_str,"_",cs_str,".rds"))
+  # saving the above dataframes as objects to run models on -- EW
+  saveRDS(area_permit_cog, paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog",".rds"))
+  saveRDS(area_permit_cog_ind, paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog-ind",".rds"))
+  saveRDS(season_eff, paste0("data/",data,"_",cs_sens_label,"_",scale,"_days",".rds"))
+  saveRDS(season_eff_ind, paste0("data/",data,"_",cs_sens_label,"_",scale,"_days-ind",".rds"))
 } else {
-  saveRDS(haul_dist, paste0("data/",data,"_",scale,"_hauldist","_",vessel_str,"_",cs_str,".rds"))
-  saveRDS(haul_dist_ind, paste0("data/",data,"_",scale,"_hauldist-ind","_",vessel_str,"_",cs_str,".rds"))
+  saveRDS(haul_dist, paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist",".rds"))
+  saveRDS(haul_dist_ind, paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist-ind",".rds"))
 }
 
 }
