@@ -14,8 +14,16 @@ for(ii in 1:nrow(all_combos)) {
   scale <- all_combos$scale[ii]
   #Split west coast into north/south of 40 10?
   split_wc <- all_combos$split_wc[ii]
-  cs_sensitivity <- all_combos$split_wc[ii]
+  cs_sensitivity <- all_combos$cs_sensitivity[ii]
+  include_all_vessels <- all_combos$include_all_vessels[ii]
   #label that appends file names with whether we subset only to vessels present both before and after CS ("stayers")
+  if(include_all_vessels)
+  {
+    vessel_label = "allvessels"
+  }else{
+    vessel_label = "singleport"
+  }
+
   if(cs_sensitivity)
   {
     cs_sens_label = "stayers"
@@ -130,13 +138,17 @@ for(ii in 1:nrow(all_combos)) {
     K = 10 # knots for year effects, for factor smooths
 
     # New null model, response varies by subarea
+    n_unique_subarea <- length(unique(dat$subarea))
+    n_unique_sector <- length(unique(dat$sector2))
     fit[[1]] = gam(response ~ catch_share + s(year,bs="ps"), weights = weights,data = dat)
-    fit[[2]] = gam(response ~ catch_share + sector2 + subarea + s(year,bs="ps"), weights = weights,data = dat)
-    fit[[3]] = gam(response ~ catch_share + sector2 + subarea + s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
-    fit[[4]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
-    fit[[5]] = gam(response ~ catch_share + sector2 + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
-    fit[[6]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
-
+    if(n_unique_subarea > 1 & n_unique_sector > 1) {
+      # statement needed because some AK data only has 1 area
+      fit[[2]] = gam(response ~ catch_share + sector2 + subarea + s(year,bs="ps"), weights = weights,data = dat)
+      fit[[3]] = gam(response ~ catch_share + sector2 + subarea + s(year, subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+      fit[[4]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+      fit[[5]] = gam(response ~ catch_share + sector2 + s(year, subarea, k=K, bs="fs", m=2) + s(year, sector2, k=K, bs="fs", m=2), weights = weights,data = dat)
+      fit[[6]] = gam(response ~ catch_share + sector2 + subarea + s(year, sector_subarea, k=K, bs="fs", m=2), weights = weights,data = dat)
+    }
     # save models for later summarizing
     saveRDS(fit, paste0("output/gams_",scale, "_",run,"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
@@ -179,14 +191,16 @@ for(ii in 1:nrow(all_combos)) {
     newdf$scale = scale
     newdf$region = data
     all_pred = newdf
-    for(i in 2:6) {
-      model_pred = predict(fit[[i]], newdata = newdata, se.fit=TRUE)
-      newdf = cbind(newdata, model_pred)
-      newdf$model = i
-      newdf$run = run
-      newdf$scale = scale
-      newdf$region = data
-      all_pred = rbind(all_pred, newdf)
+    if(n_unique_subarea > 1 & n_unique_sector > 1) {
+      for(i in 2:6) {
+        model_pred = predict(fit[[i]], newdata = newdata, se.fit=TRUE)
+        newdf = cbind(newdata, model_pred)
+        newdf$model = i
+        newdf$run = run
+        newdf$scale = scale
+        newdf$region = data
+        all_pred = rbind(all_pred, newdf)
+      }
     }
     saveRDS(all_pred, paste0("output/predictions_",scale, "_",run,"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
@@ -212,7 +226,7 @@ for(ii in 1:nrow(all_combos)) {
     #model_pred <- predict(fit[[which.min(lapply(fit,AIC))]], newdata=newdata, se.fit=TRUE) # predict to new port -- will be same as mean
 
     # save plots
-    if(run=="inertia") {
+    if(run==model_runs[[1]]) {
       counter = 1
     } else {
       counter = counter + 1
@@ -224,6 +238,7 @@ for(ii in 1:nrow(all_combos)) {
       theme_bw() + xlab("") + ylab(ylabel) + ggtitle(paste0(run, " (model ", best_model, ")"))
 
     pred_list[[counter]] = newdata
+
   } # end loop over runs
 
   ## Make summary table of AIC stats for paper
@@ -247,68 +262,58 @@ for(ii in 1:nrow(all_combos)) {
   model_results$Metric[which(model_results$Run %in% c("lat","lat-ind"))] = "Latitude"
   model_results$Metric[which(model_results$Run %in% c("lon","lon-ind"))] = "Longitude"
   model_results$Area = data
-  saveRDS(model_results, paste0("output/aic_",scale, "_",run,"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+  saveRDS(model_results, paste0("output/aic_",scale,"_",data,"_",cs_sens_label,"_", vessel_label,"_",split_wc,".rds"))
 
-
-  pdf(paste0("output/",scale, "_gams_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
-  plot_list[1]
-  plot_list[2]
-  plot_list[3]
-  plot_list[4]
-  plot_list[5]
-  plot_list[6]
-  plot_list[7]
-  plot_list[8]
-  plot_list[9]
-  plot_list[10]
+  pdf(paste0("output/",scale, "_gams_",data,"_",cs_sens_label,"_", vessel_label,"_",split_wc,".pdf"))
+  for(i in 1:length(plot_list)) plot_list[i]
   dev.off()
 
-  # also make combined plots
-  df = expand.grid(subarea = unique(c(pred_list[[1]]$subarea,pred_list[[2]]$subarea)),
-                   sector2 = unique(c(pred_list[[1]]$sector2,pred_list[[2]]$sector2)),
-                   year = unique(c(pred_list[[1]]$year,pred_list[[2]]$year)))
-
-  newdf = left_join(df, dplyr::select(pred_list[[1]], year, sector2, subarea, fit, se)) %>%
-    dplyr::mutate("Model"="Aggregate")
-  newdf_ind = left_join(df, dplyr::select(pred_list[[2]], year, sector2, subarea, fit, se)) %>%
-    dplyr::mutate("Model"="Individual")
-  newdf = rbind(newdf,newdf_ind)
-
-  p1 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
-    geom_line() +
-    geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-    facet_wrap(subarea~sector2,scale="free_y", ncol = length(unique(newdf$sector2))) +
-    theme_bw() + xlab("") + ylab("ln Inertia")
-
-  newdf = left_join(df, dplyr::select(pred_list[[3]], year, sector2, subarea, fit, se)) %>%
-    dplyr::mutate("Model"="Aggregate")
-  newdf_ind = left_join(df, dplyr::select(pred_list[[4]], year, sector2, subarea, fit, se)) %>%
-    dplyr::mutate("Model"="Individual")
-  newdf = rbind(newdf,newdf_ind)
-
-  #don't plot at-sea hake here since there is no distance to port
-  p2 = ggplot(newdf %>% filter(subarea !="at sea" & !grepl("hake", sector2)), aes(year, fit, col=Model, fill=Model)) +
-    geom_line() +
-    geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-    facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
-    theme_bw() + xlab("") + ylab("ln Distance")
-
-  newdf = left_join(df, dplyr::select(pred_list[[5]], year, sector2, subarea, fit, se)) %>%
-    dplyr::mutate("Model"="Aggregate")
-  newdf_ind = left_join(df, dplyr::select(pred_list[[6]], year, sector2, subarea, fit, se)) %>%
-    dplyr::mutate("Model"="Individual")
-  newdf = rbind(newdf,newdf_ind)
-
-  p3 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
-    geom_line() +
-    geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-    facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
-    theme_bw() + xlab("") + ylab("ln Days")
-
-  pdf(paste0("output/",scale, "_gam-combined_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
-  p1
-  p2
-  p3
-  dev.off()
+  # # also make combined plots
+  # df = expand.grid(subarea = unique(c(pred_list[[1]]$subarea,pred_list[[2]]$subarea)),
+  #                  sector2 = unique(c(pred_list[[1]]$sector2,pred_list[[2]]$sector2)),
+  #                  year = unique(c(pred_list[[1]]$year,pred_list[[2]]$year)))
+  #
+  # newdf = left_join(df, dplyr::select(pred_list[[1]], year, sector2, subarea, fit, se)) %>%
+  #   dplyr::mutate("Model"="Aggregate")
+  # newdf_ind = left_join(df, dplyr::select(pred_list[[2]], year, sector2, subarea, fit, se)) %>%
+  #   dplyr::mutate("Model"="Individual")
+  # newdf = rbind(newdf,newdf_ind)
+  #
+  # p1 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
+  #   geom_line() +
+  #   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
+  #   facet_wrap(subarea~sector2,scale="free_y", ncol = length(unique(newdf$sector2))) +
+  #   theme_bw() + xlab("") + ylab("ln Inertia")
+  #
+  # newdf = left_join(df, dplyr::select(pred_list[[3]], year, sector2, subarea, fit, se)) %>%
+  #   dplyr::mutate("Model"="Aggregate")
+  # newdf_ind = left_join(df, dplyr::select(pred_list[[4]], year, sector2, subarea, fit, se)) %>%
+  #   dplyr::mutate("Model"="Individual")
+  # newdf = rbind(newdf,newdf_ind)
+  #
+  # #don't plot at-sea hake here since there is no distance to port
+  # p2 = ggplot(newdf %>% filter(subarea !="at sea" & !grepl("hake", sector2)), aes(year, fit, col=Model, fill=Model)) +
+  #   geom_line() +
+  #   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
+  #   facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
+  #   theme_bw() + xlab("") + ylab("ln Distance")
+  #
+  # newdf = left_join(df, dplyr::select(pred_list[[5]], year, sector2, subarea, fit, se)) %>%
+  #   dplyr::mutate("Model"="Aggregate")
+  # newdf_ind = left_join(df, dplyr::select(pred_list[[6]], year, sector2, subarea, fit, se)) %>%
+  #   dplyr::mutate("Model"="Individual")
+  # newdf = rbind(newdf,newdf_ind)
+  #
+  # p3 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
+  #   geom_line() +
+  #   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
+  #   facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
+  #   theme_bw() + xlab("") + ylab("ln Days")
+  #
+  # pdf(paste0("output/",scale, "_gam-combined_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
+  # p1
+  # p2
+  # p3
+  # dev.off()
 
 }
