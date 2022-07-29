@@ -13,12 +13,13 @@ n_top_ports <- 50
 split_wc <- c("north_south", "one_area")[1]
 
 # these dataframes get created by 01_regional_summaries.r
-area_permit_cog = readRDS(paste0("data/",data,"_",scale,"_cog",".rds"))
-area_permit_cog_ind = readRDS(paste0("data/",data,"_",scale,"_cog-ind",".rds"))
-haul_dist = readRDS(paste0("data/",data,"_",scale,"_hauldist",".rds"))
-haul_dist_ind = readRDS(paste0("data/",data,"_",scale,"_hauldist-ind",".rds"))
-eff_days = readRDS(paste0("data/",data,"_",scale,"_days",".rds"))
-eff_days_ind = readRDS(paste0("data/",data,"_",scale,"_days-ind",".rds"))
+cs_sens_label = "allvessels"
+area_permit_cog = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog",".rds"))
+area_permit_cog_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_cog-ind",".rds"))
+haul_dist = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist",".rds"))
+haul_dist_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_hauldist-ind",".rds"))
+eff_days = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_days",".rds"))
+eff_days_ind = readRDS(paste0("data/",data,"_",cs_sens_label,"_",scale,"_days-ind",".rds"))
 
 #What would it look like it we plot the region-level COG over time?
 #sbbox <- make_bbox(lon = area_permit_cog$lon_mean, lat = area_permit_cog$lat_mean, f = .1)
