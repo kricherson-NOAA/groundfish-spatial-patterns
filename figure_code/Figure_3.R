@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -19,6 +19,11 @@ if(cs_sensitivity)
   cs_sens_label = "allvessels"
 }
 
+
+vessel_label = "allvessels" # because haul dist
+model_results <- readRDS(paste0("output/aic_",scale,"_",data,"_",
+                                cs_sens_label,"_", vessel_label,"_",split_wc,".rds"))
+
 #call up best models as needed
 best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
 
@@ -29,7 +34,7 @@ best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC ==
 #NOTE I think the above may read in the wrong inertia predictions? I think this is right:
 inertia = readRDS(paste0("output/predictions_",scale, "_","inertia","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 inertia_ind = readRDS(paste0("output/predictions_",scale, "_","inertia-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
-# 
+#
 # if(data == "Alaska")
 # {
 #   # Only use data from best model
@@ -46,10 +51,10 @@ inertia_ind = readRDS(paste0("output/predictions_",scale, "_","inertia-ind","_",
 # }
 
 #try calling up the best model predictions dynamically
-inertia <- dplyr::filter(inertia, model == dplyr::filter(best_model_df, Run == "inertia")$Model) %>% 
+inertia <- dplyr::filter(inertia, model == dplyr::filter(best_model_df, Run == "inertia")$Model) %>%
   dplyr::mutate("Scale"="Aggregate")
 
-inertia_ind <- dplyr::filter(inertia_ind, model == dplyr::filter(best_model_df, Run == "inertia-ind")$Model) %>% 
+inertia_ind <- dplyr::filter(inertia_ind, model == dplyr::filter(best_model_df, Run == "inertia-ind")$Model) %>%
   dplyr::mutate("Scale"="Individual")
 
 
@@ -95,3 +100,13 @@ g
 ggsave(paste0("figures/inertia_",scale, "_gams_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height=7, width=7)
 
 
+g = ggplot(df, aes(Year, fit, col=Area, fill=Area)) +
+  geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
+  geom_line() +
+  facet_wrap(Scale~Sector,scale="free_y") +
+  theme_bw() +
+  theme(strip.background =element_rect(fill="white")) +
+  xlab("Year") +
+  ylab("Distance from port") +
+  scale_color_viridis_d(end=0.5) +
+  scale_fill_viridis_d(end=0.5)

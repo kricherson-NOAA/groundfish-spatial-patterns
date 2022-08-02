@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -19,9 +19,12 @@ if(cs_sensitivity)
   cs_sens_label = "allvessels"
 }
 
+vessel_label = "singleport" # because haul dist
+model_results <- readRDS(paste0("output/aic_",scale,"_",data,"_",
+                                cs_sens_label,"_", vessel_label,"_",split_wc,".rds"))
+
 #call up best models as needed
 best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
-
 
 dist = readRDS(paste0("output/predictions_",scale, "_","haul_dist","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
@@ -39,10 +42,10 @@ dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",d
 #     dplyr::mutate("Scale"="Individual")
 # }
 #try calling up the best model predictions dynamically
-dist <- dplyr::filter(dist, model == dplyr::filter(best_model_df, Run == "haul_dist")$Model) %>% 
+dist <- dplyr::filter(dist, model == dplyr::filter(best_model_df, Run == "haul_dist")$Model) %>%
   dplyr::mutate("Scale"="Aggregate")
 
-dist_ind <- dplyr::filter(dist_ind, model == dplyr::filter(best_model_df, Run == "haul_dist-ind")$Model) %>% 
+dist_ind <- dplyr::filter(dist_ind, model == dplyr::filter(best_model_df, Run == "haul_dist-ind")$Model) %>%
   dplyr::mutate("Scale"="Individual")
 
 
@@ -91,3 +94,13 @@ ggsave(paste0("figures/distance_",scale, "_",data,"_",cs_sens_label,"_", split_w
 
 
 
+g = ggplot(df, aes(Year, fit, col=Area, fill=Area)) +
+  geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
+  geom_line() +
+  facet_wrap(Scale~Sector,scale="free_y") +
+  theme_bw() +
+  theme(strip.background =element_rect(fill="white")) +
+  xlab("Year") +
+  ylab("Distance from port") +
+  scale_color_viridis_d(end=0.5) +
+  scale_fill_viridis_d(end=0.5)
