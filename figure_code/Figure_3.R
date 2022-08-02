@@ -23,30 +23,37 @@ if(cs_sensitivity)
 best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
 
 
-dist = readRDS(paste0("output/predictions_",scale, "_","haul_dist","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
-dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+# inertia = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+# inertia_ind = readRDS(paste0("output/predictions_",scale, "_","area_permit_cog-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
-# # Only use data from best model
-# if(data == "Alaska"){
-#   dist = dplyr::filter(dist, model==5) %>%
+#NOTE I think the above may read in the wrong inertia predictions? I think this is right:
+inertia = readRDS(paste0("output/predictions_",scale, "_","inertia","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+inertia_ind = readRDS(paste0("output/predictions_",scale, "_","inertia-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+# 
+# if(data == "Alaska")
+# {
+#   # Only use data from best model
+#   inertia = dplyr::filter(inertia, model==5) %>%
 #     dplyr::mutate("Scale"="Aggregate")
-#   dist_ind = dplyr::filter(dist_ind, model==5) %>%
+#   inertia_ind = dplyr::filter(inertia_ind, model==5) %>%
 #     dplyr::mutate("Scale"="Individual")
 # }else{
-#   dist = dplyr::filter(dist, model==4) %>%
+#   # Only use data from best model (6 on the west coast)
+#   inertia = dplyr::filter(inertia, model==6) %>%
 #     dplyr::mutate("Scale"="Aggregate")
-#   dist_ind = dplyr::filter(dist_ind, model==4) %>%
+#   inertia_ind = dplyr::filter(inertia_ind, model==6) %>%
 #     dplyr::mutate("Scale"="Individual")
 # }
+
 #try calling up the best model predictions dynamically
-dist <- dplyr::filter(dist, model == dplyr::filter(best_model_df, Run == "haul_dist")$Model) %>% 
+inertia <- dplyr::filter(inertia, model == dplyr::filter(best_model_df, Run == "inertia")$Model) %>% 
   dplyr::mutate("Scale"="Aggregate")
 
-dist_ind <- dplyr::filter(dist_ind, model == dplyr::filter(best_model_df, Run == "haul_dist-ind")$Model) %>% 
+inertia_ind <- dplyr::filter(inertia_ind, model == dplyr::filter(best_model_df, Run == "inertia-ind")$Model) %>% 
   dplyr::mutate("Scale"="Individual")
 
 
-df = rbind(dist, dist_ind) %>%
+df = rbind(inertia, inertia_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
 
 # predictions are made for each port -- show average estimates
@@ -74,20 +81,17 @@ df$lo = exp(df$fit - 1.96*df$se)
 df$hi = exp(df$fit + 1.96*df$se)
 df$fit = exp(df$fit)
 
-
 g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
-  geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
+  geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col = NA) +
   geom_line() +
   facet_wrap(Area~Sector,scale="free_y") +
   theme_bw() +
   theme(strip.background =element_rect(fill="white")) +
   xlab("Year") +
-  ylab("Distance from port") +
+  ylab("Square root of inertia") +
   scale_color_viridis_d(end=0.5) +
   scale_fill_viridis_d(end=0.5)
 g
-ggsave(paste0("figures/distance_",scale, "_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width=7)
-
-
+ggsave(paste0("figures/inertia_",scale, "_gams_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height=7, width=7)
 
 

@@ -22,30 +22,31 @@ if(cs_sensitivity)
 #call up best models as needed
 best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
 
-effort = readRDS(paste0("output/predictions_",scale, "_","eff_days","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
-effort_ind = readRDS(paste0("output/predictions_",scale, "_","eff_days-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
 
-# Only use data from best model
+dist = readRDS(paste0("output/predictions_",scale, "_","haul_dist","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+dist_ind = readRDS(paste0("output/predictions_",scale, "_","haul_dist-ind","_",data,"_",cs_sens_label,"_", split_wc,".rds"))
+
+# # Only use data from best model
 # if(data == "Alaska"){
-#   effort = dplyr::filter(effort, model==6) %>%
+#   dist = dplyr::filter(dist, model==5) %>%
 #     dplyr::mutate("Scale"="Aggregate")
-#   effort_ind = dplyr::filter(effort_ind, model==6) %>%
+#   dist_ind = dplyr::filter(dist_ind, model==5) %>%
 #     dplyr::mutate("Scale"="Individual")
 # }else{
-#   effort = dplyr::filter(effort, model==2) %>%
+#   dist = dplyr::filter(dist, model==4) %>%
 #     dplyr::mutate("Scale"="Aggregate")
-#   effort_ind = dplyr::filter(effort_ind, model==6) %>%
+#   dist_ind = dplyr::filter(dist_ind, model==4) %>%
 #     dplyr::mutate("Scale"="Individual")
 # }
-
 #try calling up the best model predictions dynamically
-effort <- dplyr::filter(effort, model == dplyr::filter(best_model_df, Run == "eff_days")$Model) %>% 
+dist <- dplyr::filter(dist, model == dplyr::filter(best_model_df, Run == "haul_dist")$Model) %>% 
   dplyr::mutate("Scale"="Aggregate")
 
-effort_ind <- dplyr::filter(effort_ind, model == dplyr::filter(best_model_df, Run == "eff_days-ind")$Model) %>% 
+dist_ind <- dplyr::filter(dist_ind, model == dplyr::filter(best_model_df, Run == "haul_dist-ind")$Model) %>% 
   dplyr::mutate("Scale"="Individual")
 
-df = rbind(effort, effort_ind) %>%
+
+df = rbind(dist, dist_ind) %>%
   dplyr::rename(Sector = sector2, Area = subarea, Year = year)
 
 # predictions are made for each port -- show average estimates
@@ -69,11 +70,10 @@ df$Area[which(df$Area=="WY")] = "Western Yakutat"
 
 # Could back-transform responses -- all logged in modeling script. CIs make plot
 # hard to visualize
-#df$lo = exp(df$fit - 1.96*df$se)
-#df$hi = exp(df$fit + 1.96*df$se)
-#df$fit = exp(df$fit)
-df$lo = df$fit - 1.96*df$se
-df$hi = df$fit + 1.96*df$se
+df$lo = exp(df$fit - 1.96*df$se)
+df$hi = exp(df$fit + 1.96*df$se)
+df$fit = exp(df$fit)
+
 
 g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
@@ -82,13 +82,11 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   theme_bw() +
   theme(strip.background =element_rect(fill="white")) +
   xlab("Year") +
-  ylab("Ln effective days fished") +
+  ylab("Distance from port") +
   scale_color_viridis_d(end=0.5) +
   scale_fill_viridis_d(end=0.5)
 g
-
-ggsave(paste0("figures/effort_",scale, "_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width = 7)
-
+ggsave(paste0("figures/distance_",scale, "_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width=7)
 
 
 
