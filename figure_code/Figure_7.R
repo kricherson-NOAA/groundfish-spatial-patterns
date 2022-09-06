@@ -2,15 +2,16 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[2]
+data <- c("Alaska", "WC")[1]
 scale = c("region","port")[2]
-
 #Split west coast into north/south of 40 10?
 split_wc <- c("north_south", "one_area")[1]
 
 # for Alaska data, model 5 is best supported for
-lon = readRDS(paste0("output/predictions_",scale, "_","lon","_",data,"_", split_wc,".rds"))
-lon_ind = readRDS(paste0("output/predictions_",scale, "_","lon-ind","_",data,"_", split_wc,".rds"))
+
+
+lon = readRDS(paste0("output/predictions_",scale, "_","lon","_",data,"_","allvessels","_", split_wc,".rds"))
+lon_ind = readRDS(paste0("output/predictions_",scale, "_","lon-ind","_",data,"_","allvessels","_", split_wc,".rds"))
 
 # Only use data from best model
 if(data == "Alaska"){
