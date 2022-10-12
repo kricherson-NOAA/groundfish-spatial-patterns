@@ -5,7 +5,7 @@ library(ggplot2)
 
 # include_all_vessels isn't included as a flag here because we'll just make
 # one summary for each cs sensitivity, binding results together below
-all_combos <- expand.grid(data = c("Alaska", "WC")[1],
+all_combos <- expand.grid(data = c("Alaska", "WC")[2],
                           scale = c("port"),
                           split_wc = c("north_south","one_area")[1],
                           cs_sensitivity = c(TRUE,FALSE))
@@ -48,6 +48,12 @@ df_1 = data.frame(Model = 1:length(run_names),
 df_2 = data.frame(Model = 1:length(run_names),
                   run = run_names, Est = NA, SE = NA, P_value = NA)
 
+if(all_combos$data[1] == "WC")
+{
+  df_3 = data.frame(Model = 1:length(run_names),
+                    run = run_names, Est = NA, SE = NA, P_value = NA)
+}
+
 for(run in 1:length(run_names)) {
   # save models for later summarizing
   fits = readRDS(paste0("output/gams_",scale, "_",run_names[run],"_",data,"_",cs_sens_label,"_", split_wc,".rds"))
@@ -58,6 +64,13 @@ for(run in 1:length(run_names)) {
   df_2$Est[run] = summary(fits[[best_model_index[run]]])$p.coeff[3]
   df_2$SE[run] = summary(fits[[best_model_index[run]]])$se[3]
   df_2$P_value[run] = summary(fits[[best_model_index[run]]])$p.pv[3]
+  
+  if(all_combos$data[1] == "WC")
+  {
+    df_3$Est[run] = summary(fits[[best_model_index[run]]])$p.coeff[4]
+    df_3$SE[run] = summary(fits[[best_model_index[run]]])$se[4]
+    df_3$P_value[run] = summary(fits[[best_model_index[run]]])$p.pv[4]
+  }
 }
 
 df_1$Run = c("Days (aggregate)", "Days (individual)",
@@ -67,15 +80,31 @@ df_1$Run = c("Days (aggregate)", "Days (individual)",
            "Longitude (aggregate)", "Longitude (individual)")
 df_2$Run <- df_1$Run
 
+if(all_combos$data[1] == "WC")
+{
+  df_3$Run <- df_1$Run
+}
+
+
+
 if(data == "Alaska") {
   df_1$Sector <- "rockfish"
   df_2$Sector <- "longline"
 } else {
   df_1$Sector <- "LE/CS Trawl"
-  df_2$Sector <- "At-sea hake"
+  df_2$Sector <- "At-sea hake CP"
+  df_3$Sector <- "At-sea hake MS"
 }
 df = rbind(df_1, df_2)
-df = dplyr::select(df, -run)
+if(all_combos$data[1] == "WC")
+{
+  df = rbind(df_1, df_2, df_3)
+}
+
+df = dplyr::select(df, -run) %>% 
+  #NOTE: the coef values aren't correct for the At-sea hake haul_dist model, since that model only includes shoreside sectors
+  mutate_at(vars(Est,SE, P_value), 
+            ~(ifelse(grepl("Distance", Run) & grepl("At-sea hake", Sector), NA, .)))
 
 saveRDS(df,paste0("output/table_catchshares_",data,"_",cs_sens_label,".rds"))
 
