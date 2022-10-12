@@ -2,7 +2,7 @@ library(dplyr)
 library(ggplot2)
 library(viridis)
 
-data <- c("Alaska", "WC")[1]
+data <- c("Alaska", "WC")[2]
 scale = c("region","port")[2]
 
 #Split west coast into north/south of 40 10?
@@ -89,7 +89,7 @@ df$fit = exp(df$fit)
 g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col = NA) +
   geom_line() +
-  facet_wrap(Area~Sector,scale="free_y") +
+  facet_wrap(Area~Sector,scale="free_y", ncol = 2) +
   theme_bw() +
   theme(strip.background =element_rect(fill="white")) +
   xlab("Year") +
