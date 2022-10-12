@@ -1,7 +1,7 @@
 library(viridis)
 
 data <- c("Alaska", "WC")[1]
-cs_sensitivity <- c(TRUE,FALSE)[2]
+cs_sensitivity <- c(TRUE,FALSE)[1]
 
 if(cs_sensitivity)
 {
@@ -44,7 +44,7 @@ g1 <- ggplot(df_table, aes(Metric, Est,col=Scale)) +
   geom_abline(aes(intercept=0,slope=0), col="grey80") +
   geom_pointrange(aes(ymin=Est-1.96*SE, ymax = Est+1.96*SE),
                   position=position_dodge(0.5)) +
-  facet_wrap(~Sector, scale="free") +
+  facet_wrap(~Sector, scale="free", ncol =2) +
   xlab("") + ylab("") +
   theme_bw() +
   theme(strip.background =element_rect(fill="white")) +
