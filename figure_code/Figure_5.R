@@ -19,6 +19,10 @@ if(cs_sensitivity)
   cs_sens_label = "allvessels"
 }
 
+vessel_label = "allvessels" #note: is this right for effort?
+model_results <- readRDS(paste0("output/aic_",scale,"_",data,"_",
+                                cs_sens_label,"_", vessel_label,"_",split_wc,".rds"))
+
 #call up best models as needed
 best_model_df <- model_results %>% dplyr::group_by(Run) %>% dplyr::filter(AIC == min(AIC))
 
@@ -75,10 +79,13 @@ df$Area[which(df$Area=="WY")] = "Western Yakutat"
 df$lo = df$fit - 1.96*df$se
 df$hi = df$fit + 1.96*df$se
 
+#west coast plot looks better with 4 cols so that sectors/areas stack nicely
+if (data == "WC") {fig_cols = 2} else {fig_cols = 4}
+
 g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
   geom_line() +
-  facet_wrap(Area~Sector,scale="free_y") +
+  facet_wrap(Area~Sector,scale="free_y", ncol  = fig_cols) +
   theme_bw() +
   theme(strip.background =element_rect(fill="white")) +
   xlab("Year") +

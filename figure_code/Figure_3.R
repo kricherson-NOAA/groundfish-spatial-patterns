@@ -86,10 +86,13 @@ df$lo = exp(df$fit - 1.96*df$se)
 df$hi = exp(df$fit + 1.96*df$se)
 df$fit = exp(df$fit)
 
+#west coast plot looks better with 4 cols so that sectors/areas stack nicely
+if (data == "WC") {fig_cols = 2} else {fig_cols = 4}
+
 g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col = NA) +
   geom_line() +
-  facet_wrap(Area~Sector,scale="free_y", ncol = 2) +
+  facet_wrap(Area~Sector,scale="free_y", ncol = fig_cols) +
   theme_bw() +
   theme(strip.background =element_rect(fill="white")) +
   xlab("Year") +
