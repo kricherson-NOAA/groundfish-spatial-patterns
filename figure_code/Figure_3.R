@@ -102,14 +102,14 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
 g
 ggsave(paste0("figures/inertia_",scale, "_gams_",data,"_",cs_sens_label,"_", split_wc,".jpeg"), height=7, width=7)
 
-
-g = ggplot(df, aes(Year, fit, col=Area, fill=Area)) +
-  geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
-  geom_line() +
-  facet_wrap(Scale~Sector,scale="free_y") +
-  theme_bw() +
-  theme(strip.background =element_rect(fill="white")) +
-  xlab("Year") +
-  ylab("Distance from port") +
-  scale_color_viridis_d(end=0.5) +
-  scale_fill_viridis_d(end=0.5)
+#
+# g = ggplot(df, aes(Year, fit, col=Area, fill=Area)) +
+#   geom_ribbon(aes(ymin=lo, ymax=hi),alpha=0.5, col=NA) +
+#   geom_line() +
+#   facet_wrap(Scale~Sector,scale="free_y") +
+#   theme_bw() +
+#   theme(strip.background =element_rect(fill="white")) +
+#   xlab("Year") +
+#   ylab("Distance from port") +
+#   scale_color_viridis_d(end=0.5) +
+#   scale_fill_viridis_d(end=0.5)

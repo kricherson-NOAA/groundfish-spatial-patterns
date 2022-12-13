@@ -1,7 +1,7 @@
 library(viridis)
 
 data <- c("Alaska", "WC")[1]
-cs_sensitivity <- c(TRUE,FALSE)[1]
+cs_sensitivity <- c(TRUE,FALSE)[2]
 
 if(cs_sensitivity)
 {
