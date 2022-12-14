@@ -1,7 +1,8 @@
 library(viridis)
+library(ggplot2)
 
 data <- c("Alaska", "WC")[1]
-cs_sensitivity <- c(TRUE,FALSE)[2]
+cs_sensitivity <- c(TRUE,FALSE)[1]
 
 if(cs_sensitivity)
 {
@@ -20,13 +21,13 @@ df_table$Sector <- paste0("Alaska ", df_table$Sector)
 df_ak <- df_table
 
 data <- c("Alaska", "WC")[2]
-cs_sensitivity <- c(TRUE,FALSE)[2]
-if(cs_sensitivity)
-{
-  cs_sens_label = "stayers"
-}else{
-  cs_sens_label = "allvessels"
-}
+# cs_sensitivity <- c(TRUE,FALSE)[1]
+# if(cs_sensitivity)
+# {
+#   cs_sens_label = "stayers"
+# }else{
+#   cs_sens_label = "allvessels"
+# }
 
 df_table <- read.csv(paste0("output/table_catchshares_",data,"_",cs_sens_label,".csv"))
 # parse run name
