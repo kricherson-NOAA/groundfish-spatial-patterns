@@ -2,7 +2,7 @@ library(viridis)
 library(ggplot2)
 
 data <- c("Alaska", "WC")[1]
-cs_sensitivity <- c(TRUE,FALSE)[1]
+cs_sensitivity <- c(TRUE,FALSE)[2]
 
 if(cs_sensitivity)
 {
@@ -51,4 +51,5 @@ g1 <- ggplot(df_table, aes(Metric, Est,col=Scale)) +
   theme(strip.background =element_rect(fill="white")) +
   coord_flip() +
   scale_color_viridis_d(end=0.8)
-ggsave(g1, filename = paste0("figures/catchshare_effects",cs_sens_label,".png"))
+ggsave(g1, filename = paste0("figures/catchshare_effects",cs_sens_label,".png"),
+       height = 7)
