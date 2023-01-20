@@ -42,6 +42,8 @@ best_model_index = c(best_models$Model)
 
 run_names = best_models$Run
 
+write.csv(best_models, paste0("output/best_models_",data,"_",cs_sens_label,".csv"), row.names = F)
+
 # Separate data frames for each sector
 df_1 = data.frame(Model = 1:length(run_names),
                   run = run_names, Est = NA, SE = NA, P_value = NA)
