@@ -42,7 +42,7 @@ df = dplyr::group_by(df, Sector, Area, Year, Scale) %>%
 # Renaming
 df$Sector = as.character(df$Sector)
 df$Sector = paste0(toupper(substr(df$Sector,1,1)), substr(df$Sector,2,nchar(df$Sector)))
-df$Sector = as.factor(df$Sector)
+df$Sector = as.character(df$Sector)
 df$Area = as.character(df$Area)
 df$Area[which(df$Area=="CG")] = "Central Gulf"
 df$Area[which(df$Area=="SE")] = "Southeast"
@@ -52,7 +52,7 @@ df$Area[which(df$Area=="WY")] = "Western Yakutat"
 df$Area[which(df$Area=="at sea")] = "CA Current At Sea"
 df$Area[which(df$Area=="south")] = "CA Current South"
 df$Area[which(df$Area=="north")] = "CA Current North"
-df$Sector[which(df$Sector=="Limited Entry Sablefish")] = "LE Sablefish"
+if(length(which(df$Sector=="Limited Entry Sablefish")) > 0) df$Sector[which(df$Sector=="Limited Entry Sablefish")] = "LE Sablefish"
 
 if(ii==1) {
   all_df = df

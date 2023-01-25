@@ -51,7 +51,7 @@ df = dplyr::group_by(df, Sector, Area, Year, Scale) %>%
 # Renaming -- AK specific
 df$Sector = as.character(df$Sector)
 df$Sector = paste0(toupper(substr(df$Sector,1,1)), substr(df$Sector,2,nchar(df$Sector)))
-df$Sector = as.factor(df$Sector)
+df$Sector = as.character(df$Sector)
 df$Area = as.character(df$Area)
 df$Area[which(df$Area=="CG")] = "Central Gulf"
 df$Area[which(df$Area=="SE")] = "Southeast"
