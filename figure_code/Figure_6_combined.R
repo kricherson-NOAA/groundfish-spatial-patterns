@@ -93,3 +93,5 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
 g
 
 ggsave(paste0("figures/lat_",scale, "_combined","_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width = 7.5)
+
+saveRDS(g, "Figure_6_combined.rds")

@@ -108,7 +108,8 @@ for(ii in 1:nrow(all_combos)) {
     dat$subarea = as.factor(dat$subarea)
     dat$sector_subarea = as.factor(paste(dat$sector2, dat$subarea))
     not_rare = dplyr::group_by(dat, sector_subarea) %>%
-      dplyr::summarise(n = n()) %>% dplyr::filter(n >= quantile(n,0.25))
+      dplyr::summarise(n = n()) %>%
+      dplyr::filter(n >= 10) # 40 = port-year combinations
     #Need to adjust this for WC so that we don't exclude at-sea hake, which only has one "port"
     if(data == "WC")
     {
@@ -268,52 +269,5 @@ for(ii in 1:nrow(all_combos)) {
   for(i in 1:length(plot_list)) plot_list[i]
   dev.off()
 
-  # # also make combined plots
-  # df = expand.grid(subarea = unique(c(pred_list[[1]]$subarea,pred_list[[2]]$subarea)),
-  #                  sector2 = unique(c(pred_list[[1]]$sector2,pred_list[[2]]$sector2)),
-  #                  year = unique(c(pred_list[[1]]$year,pred_list[[2]]$year)))
-  #
-  # newdf = left_join(df, dplyr::select(pred_list[[1]], year, sector2, subarea, fit, se)) %>%
-  #   dplyr::mutate("Model"="Aggregate")
-  # newdf_ind = left_join(df, dplyr::select(pred_list[[2]], year, sector2, subarea, fit, se)) %>%
-  #   dplyr::mutate("Model"="Individual")
-  # newdf = rbind(newdf,newdf_ind)
-  #
-  # p1 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
-  #   geom_line() +
-  #   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-  #   facet_wrap(subarea~sector2,scale="free_y", ncol = length(unique(newdf$sector2))) +
-  #   theme_bw() + xlab("") + ylab("ln Inertia")
-  #
-  # newdf = left_join(df, dplyr::select(pred_list[[3]], year, sector2, subarea, fit, se)) %>%
-  #   dplyr::mutate("Model"="Aggregate")
-  # newdf_ind = left_join(df, dplyr::select(pred_list[[4]], year, sector2, subarea, fit, se)) %>%
-  #   dplyr::mutate("Model"="Individual")
-  # newdf = rbind(newdf,newdf_ind)
-  #
-  # #don't plot at-sea hake here since there is no distance to port
-  # p2 = ggplot(newdf %>% filter(subarea !="at sea" & !grepl("hake", sector2)), aes(year, fit, col=Model, fill=Model)) +
-  #   geom_line() +
-  #   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-  #   facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
-  #   theme_bw() + xlab("") + ylab("ln Distance")
-  #
-  # newdf = left_join(df, dplyr::select(pred_list[[5]], year, sector2, subarea, fit, se)) %>%
-  #   dplyr::mutate("Model"="Aggregate")
-  # newdf_ind = left_join(df, dplyr::select(pred_list[[6]], year, sector2, subarea, fit, se)) %>%
-  #   dplyr::mutate("Model"="Individual")
-  # newdf = rbind(newdf,newdf_ind)
-  #
-  # p3 = ggplot(newdf, aes(year, fit, col=Model, fill=Model)) +
-  #   geom_line() +
-  #   geom_ribbon(aes(ymin=fit-2*se, ymax=fit+2*se),alpha=0.5) +
-  #   facet_wrap(subarea~sector2,scale="free_y",ncol=length(unique(newdf$sector2))) +
-  #   theme_bw() + xlab("") + ylab("ln Days")
-  #
-  # pdf(paste0("output/",scale, "_gam-combined_",data,"_",cs_sens_label,"_", split_wc,".pdf"))
-  # p1
-  # p2
-  # p3
-  # dev.off()
 
 }

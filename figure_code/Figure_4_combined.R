@@ -91,6 +91,7 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
 g
 ggsave(paste0("figures/distance_",scale, "_combined","_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width=7)
 
+saveRDS(g, "Figure_4_combined.rds")
 
 
 
@@ -104,3 +105,4 @@ g = ggplot(df, aes(Year, fit, col=Area, fill=Area)) +
   ylab("Distance from port") +
   scale_color_viridis_d(end=0.5) +
   scale_fill_viridis_d(end=0.5)
+

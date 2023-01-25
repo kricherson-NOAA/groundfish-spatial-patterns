@@ -80,3 +80,5 @@ g = ggplot(df, aes(Year, fit, col=Scale, fill=Scale, group = Scale)) +
   scale_fill_viridis_d(end=0.5)
 g
 ggsave(paste0("figures/inertia_",scale, "_gams_combined","_",cs_sens_label,"_", split_wc,".jpeg"), height=7, width=7)
+
+saveRDS(g, "Figure_3_combined.rds")

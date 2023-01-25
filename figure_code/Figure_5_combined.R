@@ -90,6 +90,7 @@ g
 
 ggsave(paste0("figures/effort_",scale, "_combined","_",cs_sens_label,"_", split_wc,".jpeg"), height = 7, width = 7)
 
+saveRDS(g, "Figure_5_combined.rds")
 
 
 

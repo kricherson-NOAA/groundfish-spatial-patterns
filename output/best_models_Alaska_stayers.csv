@@ -1,0 +1,11 @@
+"Run","Scale","Metric","Area","Model"
+"eff_days","Aggregate","Season","Alaska",6
+"eff_days-ind","Individual","Season","Alaska",6
+"haul_dist","Aggregate","Distance","Alaska",5
+"haul_dist-ind","Individual","Distance","Alaska",1
+"inertia","Aggregate","Inertia","Alaska",5
+"inertia-ind","Individual","Inertia","Alaska",1
+"lat","Aggregate","Latitude","Alaska",6
+"lat-ind","Individual","Latitude","Alaska",3
+"lon","Aggregate","Longitude","Alaska",6
+"lon-ind","Individual","Longitude","Alaska",3

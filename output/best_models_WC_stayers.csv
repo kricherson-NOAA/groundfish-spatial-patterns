@@ -1,0 +1,11 @@
+"Run","Scale","Metric","Area","Model"
+"eff_days","Aggregate","Season","WC",4
+"eff_days-ind","Individual","Season","WC",5
+"haul_dist","Aggregate","Distance","WC",5
+"haul_dist-ind","Individual","Distance","WC",5
+"inertia","Aggregate","Inertia","WC",3
+"inertia-ind","Individual","Inertia","WC",5
+"lat","Aggregate","Latitude","WC",6
+"lat-ind","Individual","Latitude","WC",4
+"lon","Aggregate","Longitude","WC",5
+"lon-ind","Individual","Longitude","WC",3
